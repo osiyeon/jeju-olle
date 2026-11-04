@@ -25,6 +25,7 @@ export default function App() {
   const [follow, setFollow] = useState(true)
   const [now, setNow] = useState(() => Date.now())
   const [sheet, setSheet] = useState(null) // { type, ... }
+  const [placeFocus, setPlaceFocus] = useState(null) // 맛집 탭 지도에서 보여줄 맛집 { id }
 
   const course = courseById(courseId)
 
@@ -311,6 +312,11 @@ export default function App() {
             <h2>맛집</h2>
             <button className="btn primary" onClick={() => setSheet({ type: 'place' })}>지금 위치 저장</button>
           </div>
+          {coursePlaces.length > 0 && (
+            <div className="places-map">
+              <MapView current={pos} places={coursePlaces} fitPlaces focus={placeFocus} />
+            </div>
+          )}
           {places.length === 0 && (
             <div className="empty">
               <Doodle name="bowl" size={96} />
@@ -322,7 +328,12 @@ export default function App() {
               <li key={p.id}>
                 {p.photo && <PhotoThumb id={p.id} />}
                 <div className="grow">
-                  <b>{p.name}</b> {p.rating > 0 && <Stars value={p.rating} />}
+                  {p.lat != null ? (
+                    <button className="place-name" onClick={() => setPlaceFocus({ id: p.id })}>{p.name}</button>
+                  ) : (
+                    <b>{p.name}</b>
+                  )}{' '}
+                  {p.rating > 0 && <Stars value={p.rating} />}
                   {p.memo && <p>{p.memo}</p>}
                   {p.address && <small>{p.address}</small>}
                   <small>{p.courseId && `${p.courseId}코스 · `}{fmtDate(p.createdAt)}</small>

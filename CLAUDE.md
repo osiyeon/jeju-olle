@@ -37,8 +37,9 @@
 
 ## 배포
 - `main` push → GitHub Actions(`.github/workflows/deploy.yml`) → GitHub Pages
-- https://osiyeon.github.io/jeju-olle/ · 저장소 https://github.com/osiyeon/jeju-olle
-- `vite.config.js`의 `base: './'` 덕분에 서브경로/커스텀 도메인 모두 동작. 커스텀 도메인은 아직 미연결. Actions 배포라 CNAME 파일은 무시됨 → DNS CNAME 레코드 + 저장소 Settings > Pages > Custom domain에서 설정
+- https://jeju-olle.norara.app (가비아 DNS CNAME → osiyeon.github.io, Pages Custom domain + HTTPS). 옛 주소 osiyeon.github.io/jeju-olle/ 은 301로 넘어감 · 저장소 https://github.com/osiyeon/jeju-olle
+- `vite.config.js`의 `base: './'` 덕분에 서브경로/커스텀 도메인 모두 동작. Actions 배포라 CNAME 파일은 무시됨 → 도메인은 저장소 Settings > Pages > Custom domain에서 관리
+- 링크 미리보기: `index.html` og 태그 + `public/og.png`(1200×630), 홈 화면 아이콘 `public/apple-touch-icon.png`. 둘 다 낙서 그림으로 렌더한 이미지. 카카오톡은 미리보기를 캐시하므로 바꾸면 카카오 개발자 도구의 OG 캐시 초기화 필요
 - 도메인을 바꾸면 IndexedDB가 출처(origin)별이라 기존 주소의 기록이 새 주소로 안 넘어감. 기존 주소에서 백업 → 새 주소에서 복원
 
 ## 알려진 제약

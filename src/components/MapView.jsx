@@ -19,11 +19,13 @@ const pin = (label, color) =>
 const dot = L.divIcon({ className: 'pin pin-gyul', html: doodleSvg('gyul', 28), iconSize: [28, 28], iconAnchor: [14, 20], popupAnchor: [0, -16] })
 
 // 지도는 Leaflet을 직접 다룬다 (react-leaflet 없이 가볍게)
-export default function MapView({ current, points = [], places = [], course, follow, onUserMove, fitTrack }) {
+// fitPlaces: 맛집 핀이 다 보이게 맞춤(맛집 탭). focus: { id } 바뀌면 그 맛집으로 이동해 말풍선 열기
+export default function MapView({ current, points = [], places = [], course, follow, onUserMove, fitTrack, fitPlaces, focus }) {
   const el = useRef(null)
   const map = useRef(null)
   const L_ = useRef({})
   const firstFix = useRef(false)
+  const markers = useRef(new Map())
 
   useEffect(() => {
     const m = L.map(el.current, { zoomControl: false, attributionControl: true }).setView(JEJU, 10)
@@ -31,6 +33,7 @@ export default function MapView({ current, points = [], places = [], course, fol
       maxZoom: 19,
       attribution: '© OpenStreetMap',
     }).addTo(m)
+    m.attributionControl.setPrefix(false) // OSM 출처만 남김
     m.createPane('coursePane').style.zIndex = 350 // 걸은 경로(overlayPane 400) 아래
     L_.current = {
       courseLine: L.layerGroup().addTo(m),
@@ -62,15 +65,29 @@ export default function MapView({ current, points = [], places = [], course, fol
   useEffect(() => {
     const g = L_.current.places
     g.clearLayers()
+    markers.current.clear()
     places.forEach((p) => {
-      L.marker([p.lat, p.lng], { icon: dot })
+      const mk = L.marker([p.lat, p.lng], { icon: dot })
         .bindPopup(
           `<b>${escapeHtml(p.name)}</b>${p.rating ? ' ' + '★'.repeat(p.rating) : ''}<br>${escapeHtml(p.memo || '')}` +
             (safeUrl(p.link) ? `<br><a href="${escapeHtml(safeUrl(p.link))}" target="_blank" rel="noreferrer">${mapSource(p.link)}에서 보기</a>` : ''),
         )
         .addTo(g)
+      markers.current.set(p.id, mk)
     })
-  }, [places])
+    if (fitPlaces && places.length) {
+      const b = L.latLngBounds(places.map((p) => [p.lat, p.lng]))
+      map.current.fitBounds(b, { padding: [40, 40], maxZoom: 15 })
+    }
+  }, [places, fitPlaces])
+
+  // 목록에서 고른 맛집으로 이동
+  useEffect(() => {
+    const mk = focus && markers.current.get(focus.id)
+    if (!mk) return
+    map.current.setView(mk.getLatLng(), Math.max(map.current.getZoom(), 16), { animate: true })
+    mk.openPopup()
+  }, [focus])
 
   // 경로
   useEffect(() => {
@@ -93,11 +110,11 @@ export default function MapView({ current, points = [], places = [], course, fol
       acc.addTo(map.current)
       me.addTo(map.current)
     }
-    if (!fitTrack && (follow || !firstFix.current)) {
+    if (!fitTrack && !fitPlaces && (follow || !firstFix.current)) {
       map.current.setView(ll, firstFix.current ? map.current.getZoom() : 16, { animate: true })
       firstFix.current = true
     }
-  }, [current, follow, fitTrack])
+  }, [current, follow, fitTrack, fitPlaces])
 
   return <div ref={el} className="map" />
 }
