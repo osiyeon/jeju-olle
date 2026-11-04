@@ -77,9 +77,9 @@ h2, h3, h4, .btn, .tabs button, .tag, .splash, .course-chip b, .course-list li b
 .chip-gyul { flex: none; margin-top: -3px; }
 .gps-err { background: var(--ink); color: var(--paper); font-size: 13px; padding: 7px 10px; border-radius: var(--wobble); }
 .fab { position: absolute; z-index: 500; width: 46px; height: 46px; border-radius: var(--wobble); border: 2px solid var(--ink); background: var(--card); box-shadow: 2px 3px 0 var(--ink); color: var(--ink); display: grid; place-items: center; padding: 0; }
-.fab.locate { right: 12px; bottom: 230px; }
+.fab.locate { right: 12px; bottom: calc(100% + 10px); }
 .walk-panel { position: absolute; left: 0; right: 0; bottom: 0; z-index: 500; background: var(--card); border-top: 2px solid var(--ink); border-radius: var(--wobble-lg); border-bottom-left-radius: 0; border-bottom-right-radius: 0; padding: 16px 16px 14px; }
-.panel-deco { position: absolute; top: -22px; right: 18px; display: flex; align-items: flex-end; gap: 2px; pointer-events: none; }
+.panel-deco { position: absolute; top: -22px; right: 76px; display: flex; align-items: flex-end; gap: 2px; pointer-events: none; }
 .status { margin: 0; font-size: 14px; color: var(--muted); }
 .remain { margin: 8px 0 0; font-size: 14px; }
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); }

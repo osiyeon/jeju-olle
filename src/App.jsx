@@ -213,13 +213,13 @@ export default function App() {
             {SIM && <div className="gps-err">시뮬레이션 모드</div>}
           </div>
 
-          {!follow && (
-            <button className="fab locate" onClick={() => setFollow(true)} aria-label="내 위치로">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="10" cy="10" r="5.5" /><circle cx="10" cy="10" r="1.6" fill="currentColor" /><path d="M10 1.5v3M10 15.5v3M1.5 10h3M15.5 10h3" /></svg>
-            </button>
-          )}
-
           <div className="walk-panel">
+            {/* 패널 안에 두어 패널 높이가 바뀌어도 윗선에 붙어 있게 */}
+            {!follow && (
+              <button className="fab locate" onClick={() => setFollow(true)} aria-label="내 위치로">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="10" cy="10" r="5.5" /><circle cx="10" cy="10" r="1.6" fill="currentColor" /><path d="M10 1.5v3M10 15.5v3M1.5 10h3M15.5 10h3" /></svg>
+              </button>
+            )}
             <div className="panel-deco">
               <Doodle name="wave" size={50} />
               <Doodle name="camellia" size={24} />
