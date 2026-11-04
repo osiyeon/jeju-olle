@@ -12,6 +12,7 @@
 - 서버 없음. 모든 데이터는 기기 IndexedDB (`walks`, `places`, `done`, `active`, `photo:<id>`)
 - 빠르게 만들고 바로 쓰는 게 우선. 의존성 추가는 최소화
 - UI 문구는 한국어
+- 디자인: 손그림 + 제주. 제목·숫자·버튼은 손글씨체 Gaegu(Google Fonts, `index.html`), 본문은 시스템 고딕. 삐뚤한 테두리(`--wobble`) + 스티커 그림자. 간세(올레 공식 캐릭터)는 상표라 쓰지 않음
 
 ## 구조
 - `src/App.jsx` — 탭 4개(걷기/코스/맛집/기록), GPS watchPosition, 걷기 시작/종료, Wake Lock
@@ -22,6 +23,7 @@
 - `src/lib/geo.js` — haversine, 포맷 함수
 - `src/lib/store.js` — IndexedDB, 사진 리사이즈, 백업/복원
 - `src/lib/shareCard.js` — 1080×1920 공유 카드 Canvas 렌더 + Web Share
+- `src/lib/doodles.js` — 손그림 낙서(귤, 돌하르방, 돌담, 오름, 동백, 파도, 그릇) path 데이터. 화면 SVG(`components/Doodle.jsx`)와 공유 카드 Canvas가 같이 씀
 
 ## GPS 규칙
 오차 50m 초과 버림, 8m 미만 이동 무시, 초속 12m 초과(순간이동) 무시. 진행 중 기록은 점마다 `active` 키에 저장 → 새로고침해도 이어짐.
