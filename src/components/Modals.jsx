@@ -157,7 +157,7 @@ export function CourseSheet({ course, record, onSave, onRemove, onWalk, onShare,
       <label>메모<textarea rows={3} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="기억하고 싶은 것" /></label>
       <button className="btn primary block" onClick={() => onSave({ ...record, date, memo, ...(record?.walkId ? {} : { km: Number(km) || course.km || null, minutes: minutes || null }) })}>{record ? '저장' : '완주로 기록'}</button>
       <div className="row">
-        <button className="btn" onClick={onWalk}>이 코스 걷기</button>
+        <button className="btn" onClick={onWalk}>코스 걷기</button>
         {record && <button className="btn" onClick={onShare}>공유 카드</button>}
         {record && <button className="btn danger" onClick={onRemove}>완주 취소</button>}
       </div>

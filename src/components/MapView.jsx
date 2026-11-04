@@ -12,9 +12,10 @@ const pin = (label, color) =>
     html: `<div class="pin-body" style="background:${color}">${label}</div>`,
     iconSize: null,
     iconAnchor: [14, 34],
+    popupAnchor: [0, -30], // 말풍선이 핀을 가리지 않게 핀 위에서
   })
 
-const dot = L.divIcon({ className: 'pin pin-gyul', html: doodleSvg('gyul', 28), iconSize: [28, 28], iconAnchor: [14, 20] })
+const dot = L.divIcon({ className: 'pin pin-gyul', html: doodleSvg('gyul', 28), iconSize: [28, 28], iconAnchor: [14, 20], popupAnchor: [0, -16] })
 
 // 지도는 Leaflet을 직접 다룬다 (react-leaflet 없이 가볍게)
 export default function MapView({ current, points = [], places = [], course, follow, onUserMove, fitTrack }) {
@@ -52,8 +53,8 @@ export default function MapView({ current, points = [], places = [], course, fol
     line.clearLayers()
     const segs = course && courseTrack(course.id)
     if (segs) L.polyline(segs, { pane: 'coursePane', color: '#3f7aa0', weight: 4, opacity: 0.7, dashArray: '1 9', lineCap: 'round' }).addTo(line)
-    if (course?.start) L.marker([course.start.lat, course.start.lng], { icon: pin('시작', '#bcd4e2') }).bindPopup(course.start.name).addTo(g)
-    if (course?.end) L.marker([course.end.lat, course.end.lng], { icon: pin('종점', '#f6d2cd') }).bindPopup(course.end.name).addTo(g)
+    if (course?.start) L.marker([course.start.lat, course.start.lng], { icon: pin('시작', '#bcd4e2') }).bindPopup(`<span class="pop-label">출발점</span>${escapeHtml(course.start.name)}`).addTo(g)
+    if (course?.end) L.marker([course.end.lat, course.end.lng], { icon: pin('종점', '#f6d2cd') }).bindPopup(`<span class="pop-label">종점</span>${escapeHtml(course.end.name)}`).addTo(g)
   }, [course])
 
   // 맛집
