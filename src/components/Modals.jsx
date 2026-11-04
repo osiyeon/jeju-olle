@@ -58,8 +58,8 @@ export function PlaceForm({ pos, courseId, onSave, onClose }) {
   }
 
   return (
-    <Sheet title="🍜 맛집 저장" onClose={onClose}>
-      {!pos && <p className="warn">아직 위치를 못 잡았어요. 위치 없이 저장돼요.</p>}
+    <Sheet title="맛집 저장" onClose={onClose}>
+      {!pos && <p className="warn">위치를 아직 못 잡았어요. 지도 핀 없이 저장돼요.</p>}
       <label>이름<input value={name} onChange={(e) => setName(e.target.value)} placeholder="예) 함덕 고기국수" autoFocus /></label>
       <label>별점<Stars value={rating} onChange={setRating} /></label>
       <label>메모<textarea value={memo} onChange={(e) => setMemo(e.target.value)} rows={3} placeholder="메뉴, 가격, 한줄평" /></label>
@@ -70,7 +70,7 @@ export function PlaceForm({ pos, courseId, onSave, onClose }) {
         </select>
       </label>
       <label className="file-btn">
-        📷 사진 {photo ? '바꾸기' : '추가'}
+        사진 {photo ? '바꾸기' : '추가'}
         <input type="file" accept="image/*" onChange={pick} hidden />
       </label>
       {preview && <img src={preview} className="preview" alt="" />}
@@ -104,11 +104,11 @@ export function ShareSheet({ walk, course, placeCount, onClose }) {
   }, [walk, course, photo, placeCount])
 
   return (
-    <Sheet title="🎉 공유 카드" onClose={onClose}>
+    <Sheet title="공유 카드" onClose={onClose}>
       {url ? <img src={url} className="card-preview" alt="공유 카드" /> : <div className="card-preview loading">만드는 중…</div>}
       <div className="row">
         <label className="btn">
-          📷 배경 사진
+          배경 사진 넣기
           <input type="file" accept="image/*" hidden onChange={async (e) => e.target.files?.[0] && setPhoto(await resizeImage(e.target.files[0], 2000))} />
         </label>
         {photo && <button className="btn" onClick={() => setPhoto(null)}>사진 빼기</button>}
@@ -117,14 +117,14 @@ export function ShareSheet({ walk, course, placeCount, onClose }) {
         className="btn primary block"
         disabled={!blob}
         onClick={async () => {
-          const r = await shareOrDownload(blob, `olle-${course.id}.jpg`, `제주올레 ${course.id}코스 완주! #제주올레`)
+          const r = await shareOrDownload(blob, `olle-${course.id}.jpg`, `제주올레 ${course.id}코스 ${course.name}`)
           if (r === 'downloaded') setMsg('이미지를 저장했어요.')
         }}
       >
-        공유하기 (인스타·카톡)
+        공유하기
       </button>
       {msg && <p className="hint">{msg}</p>}
-      <p className="hint">공유 창에서 ‘이미지 저장’을 누르면 사진 앱에 저장돼요.</p>
+      <p className="hint">공유 창에서 ‘이미지 저장’을 누르면 사진 앱에 들어가요.</p>
     </Sheet>
   )
 }
@@ -142,10 +142,10 @@ export function CourseSheet({ course, record, onSave, onRemove, onWalk, onShare,
       )}
       <label>완주한 날<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
       <label>메모<textarea rows={3} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="기억하고 싶은 것" /></label>
-      <button className="btn primary block" onClick={() => onSave({ ...record, date, memo })}>{record ? '수정 저장' : '✅ 완주로 기록'}</button>
+      <button className="btn primary block" onClick={() => onSave({ ...record, date, memo })}>{record ? '저장' : '완주로 기록'}</button>
       <div className="row">
-        <button className="btn" onClick={onWalk}>🚶 이 코스 걷기</button>
-        {record && <button className="btn" onClick={onShare}>📤 공유 카드</button>}
+        <button className="btn" onClick={onWalk}>이 코스 걷기</button>
+        {record && <button className="btn" onClick={onShare}>공유 카드</button>}
         {record && <button className="btn danger" onClick={onRemove}>완주 취소</button>}
       </div>
     </Sheet>

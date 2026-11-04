@@ -11,6 +11,8 @@ const pin = (label, color) =>
     iconAnchor: [14, 34],
   })
 
+const dot = L.divIcon({ className: 'pin', html: '<div class="pin-dot"></div>', iconSize: [14, 14], iconAnchor: [7, 7] })
+
 // 지도는 Leaflet을 직접 다룬다 (react-leaflet 없이 가볍게)
 export default function MapView({ current, points = [], places = [], course, follow, onUserMove, fitTrack }) {
   const el = useRef(null)
@@ -27,9 +29,9 @@ export default function MapView({ current, points = [], places = [], course, fol
     L_.current = {
       course: L.layerGroup().addTo(m),
       places: L.layerGroup().addTo(m),
-      track: L.polyline([], { color: '#F28C28', weight: 6, opacity: 0.95 }).addTo(m),
-      acc: L.circle(JEJU, { radius: 0, color: '#1D86BF', weight: 1, fillOpacity: 0.12 }),
-      me: L.circleMarker(JEJU, { radius: 8, color: '#fff', weight: 3, fillColor: '#1D86BF', fillOpacity: 1 }),
+      track: L.polyline([], { color: '#dc6b25', weight: 5, opacity: 0.95 }).addTo(m),
+      acc: L.circle(JEJU, { radius: 0, color: '#24577a', weight: 1, fillOpacity: 0.1 }),
+      me: L.circleMarker(JEJU, { radius: 8, color: '#fff', weight: 3, fillColor: '#24577a', fillOpacity: 1 }),
     }
     m.on('dragstart', () => onUserMove?.())
     map.current = m
@@ -41,8 +43,8 @@ export default function MapView({ current, points = [], places = [], course, fol
   useEffect(() => {
     const g = L_.current.course
     g.clearLayers()
-    if (course?.start) L.marker([course.start.lat, course.start.lng], { icon: pin('시작', '#2E9E5B') }).bindPopup(course.start.name).addTo(g)
-    if (course?.end) L.marker([course.end.lat, course.end.lng], { icon: pin('종점', '#D8432F') }).bindPopup(course.end.name).addTo(g)
+    if (course?.start) L.marker([course.start.lat, course.start.lng], { icon: pin('시작', '#24577a') }).bindPopup(course.start.name).addTo(g)
+    if (course?.end) L.marker([course.end.lat, course.end.lng], { icon: pin('종점', '#b8432c') }).bindPopup(course.end.name).addTo(g)
   }, [course])
 
   // 맛집
@@ -50,7 +52,7 @@ export default function MapView({ current, points = [], places = [], course, fol
     const g = L_.current.places
     g.clearLayers()
     places.forEach((p) => {
-      L.marker([p.lat, p.lng], { icon: pin('🍜', '#fff') })
+      L.marker([p.lat, p.lng], { icon: dot })
         .bindPopup(`<b>${escapeHtml(p.name)}</b>${p.rating ? ' ' + '★'.repeat(p.rating) : ''}<br>${escapeHtml(p.memo || '')}`)
         .addTo(g)
     })

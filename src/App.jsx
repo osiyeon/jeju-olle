@@ -174,14 +174,16 @@ export default function App() {
 
           <div className="walk-top">
             <button className="course-chip" disabled={!!active} onClick={() => setSheet({ type: 'pickCourse' })}>
-              <b>{course.id}코스</b> {course.name} {!active && '▾'}
+              <b>{course.id}코스</b>{course.name}{!active && <span className="caret">▼</span>}
             </button>
             {gpsErr && <div className="gps-err">{gpsErr}</div>}
             {SIM && <div className="gps-err">시뮬레이션 모드</div>}
           </div>
 
           {!follow && (
-            <button className="fab locate" onClick={() => setFollow(true)} aria-label="내 위치">◎</button>
+            <button className="fab locate" onClick={() => setFollow(true)} aria-label="내 위치로">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="10" cy="10" r="5.5" /><circle cx="10" cy="10" r="1.6" fill="currentColor" /><path d="M10 1.5v3M10 15.5v3M1.5 10h3M15.5 10h3" /></svg>
+            </button>
           )}
 
           <div className="walk-panel">
@@ -192,26 +194,26 @@ export default function App() {
                   <div><span>시간</span><b>{fmtDuration(elapsed)}</b></div>
                   <div><span>페이스</span><b>{fmtPace(elapsed, active.distance)}</b></div>
                 </div>
-                {remaining != null && <p className="remain">🏁 {course.end.name}까지 직선 {fmtKm(remaining)}km</p>}
+                {remaining != null && <p className="remain">{course.end.name}까지 직선 {fmtKm(remaining)}km</p>}
                 <div className="row">
-                  <button className="btn" onClick={() => setSheet({ type: 'place' })}>🍜 맛집 저장</button>
-                  <button className="btn danger" onClick={() => setSheet({ type: 'finish' })}>■ 종료</button>
+                  <button className="btn" onClick={() => setSheet({ type: 'place' })}>맛집 저장</button>
+                  <button className="btn danger" onClick={() => setSheet({ type: 'finish' })}>그만 걷기</button>
                 </div>
               </>
             ) : (
               <>
                 <p className="status">
-                  {pos ? `📍 위치 확인됨 (오차 ±${Math.round(pos.accuracy)}m)` : '📍 위치 찾는 중…'}
-                  {done[course.id] && ` · ✅ ${done[course.id].date} 완주`}
+                  {pos ? `현재 위치 오차 ±${Math.round(pos.accuracy)}m` : '위치 찾는 중…'}
+                  {done[course.id] && ` · ${done[course.id].date} 완주`}
                 </p>
                 {remaining != null && course.start && (
-                  <p className="remain">출발점 {course.start.name}까지 {fmtKm(haversine([pos.lat, pos.lng], [course.start.lat, course.start.lng]))}km</p>
+                  <p className="remain">출발점({course.start.name})까지 {fmtKm(haversine([pos.lat, pos.lng], [course.start.lat, course.start.lng]))}km</p>
                 )}
                 <div className="row">
-                  <button className="btn" onClick={() => setSheet({ type: 'place' })}>🍜 맛집 저장</button>
-                  <button className="btn primary grow" onClick={startWalk}>▶ 걷기 시작</button>
+                  <button className="btn" onClick={() => setSheet({ type: 'place' })}>맛집 저장</button>
+                  <button className="btn primary grow" onClick={startWalk}>걷기 시작</button>
                 </div>
-                <p className="hint">걷는 동안 화면이 켜져 있어야 기록돼요. 보조배터리 챙기세요!</p>
+                <p className="hint">화면이 꺼지면 기록도 멈춰요. 걷는 동안엔 켜 두세요.</p>
               </>
             )}
           </div>
@@ -221,15 +223,15 @@ export default function App() {
       {/* ===== 코스 ===== */}
       {tab === 'courses' && (
         <div className="page">
-          <h2>나의 올레</h2>
+          <h2>올레 스탬프</h2>
           <div className="progress">
-            <div className="bar"><i style={{ width: `${(doneCount / COURSES.length) * 100}%` }} /></div>
-            <p><b>{doneCount}</b> / {COURSES.length} 코스 완주</p>
+            <p><b>{doneCount}</b> / {COURSES.length}코스</p>
+            <div className="ticks">{COURSES.map((c) => <i key={c.id} className={done[c.id] ? 'on' : ''} />)}</div>
           </div>
           <ul className="course-list">
             {COURSES.map((c) => (
               <li key={c.id} className={done[c.id] ? 'done' : ''} onClick={() => setSheet({ type: 'course', id: c.id })}>
-                <span className="stamp">{done[c.id] ? '✓' : c.id}</span>
+                <span className="stamp">{c.id}</span>
                 <div>
                   <b>{c.id}코스</b> <span>{c.name}</span>
                   {done[c.id] && <small>{done[c.id].date} 완주</small>}
@@ -245,9 +247,9 @@ export default function App() {
         <div className="page">
           <div className="page-head">
             <h2>맛집</h2>
-            <button className="btn primary" onClick={() => setSheet({ type: 'place' })}>+ 여기 저장</button>
+            <button className="btn primary" onClick={() => setSheet({ type: 'place' })}>지금 위치 저장</button>
           </div>
-          {places.length === 0 && <p className="empty">걷다가 맛있는 곳을 저장해 보세요.</p>}
+          {places.length === 0 && <p className="empty">아직 저장한 곳이 없어요.</p>}
           <ul className="place-list">
             {places.map((p) => (
               <li key={p.id}>
@@ -263,7 +265,7 @@ export default function App() {
                         <a href={`https://map.kakao.com/link/to/${encodeURIComponent(p.name)},${p.lat},${p.lng}`} target="_blank" rel="noreferrer">길찾기</a>
                       </>
                     )}
-                    <a href={`https://map.naver.com/p/search/${encodeURIComponent('제주 ' + p.name)}`} target="_blank" rel="noreferrer">네이버 검색</a>
+                    <a href={`https://map.naver.com/p/search/${encodeURIComponent('제주 ' + p.name)}`} target="_blank" rel="noreferrer">네이버</a>
                     <button onClick={() => removePlace(p)}>삭제</button>
                   </div>
                 </div>
@@ -282,7 +284,7 @@ export default function App() {
             {walks.map((w) => (
               <li key={w.id} onClick={() => setSheet({ type: 'walk', walk: w })}>
                 <div>
-                  <b>{w.courseId}코스</b> {w.completed ? '✅' : '(일부)'}
+                  <b>{w.courseId}코스</b>{w.completed ? <span className="tag done">완주</span> : <span className="tag part">일부</span>}
                   <small>{fmtDate(w.startedAt)}</small>
                 </div>
                 <div className="right">
@@ -297,9 +299,9 @@ export default function App() {
       )}
 
       <nav className="tabs">
-        {[['walk', '🚶', '걷기'], ['courses', '🗺️', '코스'], ['places', '🍜', '맛집'], ['history', '📒', '기록']].map(([k, i, l]) => (
+        {[['walk', '걷기'], ['courses', '코스'], ['places', '맛집'], ['history', '기록']].map(([k, l]) => (
           <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>
-            <span>{i}</span>{l}
+            {l}
           </button>
         ))}
       </nav>
@@ -312,7 +314,7 @@ export default function App() {
           <ul className="pick-list">
             {COURSES.map((c) => (
               <li key={c.id} className={c.id === courseId ? 'on' : ''} onClick={() => (setCourseId(c.id), setSheet(null))}>
-                <b>{c.id}코스</b> {c.name} {done[c.id] && '✅'}
+                <b>{c.id}코스</b>{c.name}{done[c.id] && <span className="tag done">완주</span>}
               </li>
             ))}
           </ul>
@@ -320,11 +322,11 @@ export default function App() {
       )}
 
       {sheet?.type === 'finish' && (
-        <Sheet title="걷기 종료" onClose={() => setSheet(null)}>
+        <Sheet title="오늘 걷기 마무리" onClose={() => setSheet(null)}>
           <p className="big-stat">{fmtKm(active.distance)}km · {fmtDurationKo(elapsed)}</p>
-          <button className="btn primary block" onClick={() => finishWalk(true)}>🎉 {active.courseId}코스 완주!</button>
-          <button className="btn block" onClick={() => finishWalk(false)}>일부만 걸었어요 (기록만 저장)</button>
-          <button className="btn block danger-text" onClick={() => confirm('기록을 버릴까요?') && (setActive(null), setSheet(null))}>기록 버리기</button>
+          <button className="btn primary block" onClick={() => finishWalk(true)}>{active.courseId}코스 완주</button>
+          <button className="btn block" onClick={() => finishWalk(false)}>중간까지 걸었어요</button>
+          <button className="btn block danger-text" onClick={() => confirm('지금까지 걸은 기록을 버릴까요?') && (setActive(null), setSheet(null))}>기록 버리기</button>
         </Sheet>
       )}
 
@@ -365,7 +367,7 @@ export default function App() {
             <div><span>시간</span><b>{fmtDuration(sheet.walk.endedAt - sheet.walk.startedAt)}</b></div>
             <div><span>페이스</span><b>{fmtPace(sheet.walk.endedAt - sheet.walk.startedAt, sheet.walk.distance)}</b></div>
           </div>
-          <button className="btn primary block" onClick={() => setSheet({ type: 'share', walk: sheet.walk })}>📤 공유 카드 만들기</button>
+          <button className="btn primary block" onClick={() => setSheet({ type: 'share', walk: sheet.walk })}>공유 카드 만들기</button>
           <button
             className="btn block danger-text"
             onClick={() => {
@@ -387,7 +389,7 @@ function Backup() {
   return (
     <div className="backup">
       <h4>백업</h4>
-      <p className="hint">기록은 이 휴대폰의 Safari 안에만 저장돼요. 가끔 백업 파일을 받아두세요.</p>
+      <p className="hint">기록은 이 휴대폰 Safari에만 남아요. 걷고 난 날엔 백업 파일을 받아 두세요.</p>
       <div className="row">
         <button
           className="btn"
@@ -404,19 +406,19 @@ function Backup() {
             }
           }}
         >
-          ⬇️ 백업 받기
+          백업 받기
         </button>
         <label className="btn">
-          ⬆️ 복원
+          백업에서 복원
           <input
             type="file"
             accept="application/json,.json"
             hidden
             onChange={async (e) => {
               const f = e.target.files?.[0]
-              if (!f || !confirm('지금 기록을 백업 내용으로 덮어쓸까요?')) return
+              if (!f || !confirm('지금 기록을 백업 파일 내용으로 덮어쓸까요?')) return
               await importAll(JSON.parse(await f.text()))
-              setMsg('복원 완료! 새로고침합니다.')
+              setMsg('복원했어요. 다시 불러올게요.')
               setTimeout(() => location.reload(), 800)
             }}
           />

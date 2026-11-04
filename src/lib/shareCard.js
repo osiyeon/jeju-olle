@@ -1,6 +1,13 @@
 import { fmtKm, fmtDurationKo, fmtPace, fmtDate } from './geo'
 
 const FONT = '-apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif'
+const SERIF = 'AppleMyungjo, "Nanum Myeongjo", "Noto Serif KR", serif'
+const PAPER = '#F3EFE6'
+const INK = '#24221E'
+const MUTED = '#827B6E'
+const TANG = '#DC6B25'
+const SEA = '#24577A'
+const STAMP = '#B8432C'
 const W = 1080
 const H = 1920
 
@@ -42,28 +49,50 @@ function drawRoute(ctx, points, box) {
 
   ctx.lineJoin = 'round'
   ctx.lineCap = 'round'
-  const stroke = (color, width) => {
-    ctx.beginPath()
-    P.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)))
-    ctx.strokeStyle = color
-    ctx.lineWidth = width
-    ctx.stroke()
-  }
-  stroke('rgba(255,255,255,0.95)', 26)
-  stroke('#F28C28', 14)
+  ctx.beginPath()
+  P.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)))
+  ctx.strokeStyle = TANG
+  ctx.lineWidth = box.w > 500 ? 12 : 8
+  ctx.stroke()
 
-  const dot = ([x, y], fill) => {
-    ctx.beginPath()
-    ctx.arc(x, y, 20, 0, Math.PI * 2)
-    ctx.fillStyle = '#fff'
-    ctx.fill()
-    ctx.beginPath()
-    ctx.arc(x, y, 12, 0, Math.PI * 2)
-    ctx.fillStyle = fill
-    ctx.fill()
-  }
-  dot(P[0], '#2E9E5B')
-  dot(P[P.length - 1], '#D8432F')
+  const r = box.w > 500 ? 14 : 10
+  const [sx, sy] = P[0]
+  ctx.beginPath()
+  ctx.arc(sx, sy, r, 0, Math.PI * 2)
+  ctx.fillStyle = PAPER
+  ctx.fill()
+  ctx.lineWidth = 5
+  ctx.strokeStyle = INK
+  ctx.stroke()
+  const [ex, ey] = P[P.length - 1]
+  ctx.beginPath()
+  ctx.arc(ex, ey, r, 0, Math.PI * 2)
+  ctx.fillStyle = INK
+  ctx.fill()
+}
+
+// 고무 도장 느낌의 완주 스탬프
+function drawStamp(ctx, cx, cy, r, date) {
+  ctx.save()
+  ctx.translate(cx, cy)
+  ctx.rotate(-0.22)
+  ctx.globalAlpha = 0.86
+  ctx.strokeStyle = STAMP
+  ctx.fillStyle = STAMP
+  ctx.lineWidth = 7
+  ctx.beginPath()
+  ctx.arc(0, 0, r, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.lineWidth = 2.5
+  ctx.beginPath()
+  ctx.arc(0, 0, r - 14, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.textAlign = 'center'
+  ctx.font = `700 ${Math.round(r * 0.5)}px ${SERIF}`
+  ctx.fillText('완주', 0, r * 0.08)
+  ctx.font = `600 ${Math.round(r * 0.2)}px ${FONT}`
+  ctx.fillText(date, 0, r * 0.45)
+  ctx.restore()
 }
 
 export async function makeShareCard({ walk, course, photoBlob, placeCount = 0 }) {
@@ -71,74 +100,88 @@ export async function makeShareCard({ walk, course, photoBlob, placeCount = 0 })
   c.width = W
   c.height = H
   const ctx = c.getContext('2d')
+  const date = fmtDate(walk.startedAt)
 
-  // 바다 그라데이션 배경
-  const g = ctx.createLinearGradient(0, 0, 0, H)
-  g.addColorStop(0, '#0B4F7A')
-  g.addColorStop(1, '#1D86BF')
-  ctx.fillStyle = g
+  ctx.fillStyle = PAPER
   ctx.fillRect(0, 0, W, H)
 
-  let routeBox = { x: 120, y: 560, w: 840, h: 700 }
-  if (photoBlob) {
-    const img = await loadImg(photoBlob)
-    drawCover(ctx, img, 0, 0, W, 1080)
-    const fade = ctx.createLinearGradient(0, 700, 0, 1080)
-    fade.addColorStop(0, 'rgba(11,79,122,0)')
-    fade.addColorStop(1, 'rgba(11,79,122,1)')
-    ctx.fillStyle = fade
-    ctx.fillRect(0, 700, W, 380)
-    routeBox = { x: 700, y: 1100, w: 280, h: 260 }
+  // 올레 리본 (주황·파랑)
+  const ribbon = (x, y) => {
+    ctx.fillStyle = TANG
+    ctx.fillRect(x, y, 16, 90)
+    ctx.fillStyle = SEA
+    ctx.fillRect(x + 22, y, 16, 90)
   }
 
-  // 텍스트
-  ctx.fillStyle = '#fff'
+  let titleY, routeBox, stamp
+  if (photoBlob) {
+    const img = await loadImg(photoBlob)
+    drawCover(ctx, img, 60, 60, W - 120, 860)
+    titleY = 1000
+    routeBox = { x: 660, y: 1010, w: 340, h: 320 }
+    stamp = [W - 190, 860, 115]
+  } else {
+    ribbon(W - 140, 0)
+    titleY = 140
+    routeBox = { x: 100, y: 660, w: 880, h: 620 }
+    stamp = walk.points?.length > 1 ? [W - 230, 1290, 125] : [W / 2 + 60, 960, 210]
+  }
+
   ctx.textBaseline = 'alphabetic'
-  const titleY = photoBlob ? 1210 : 260
-  ctx.font = `600 44px ${FONT}`
-  ctx.fillStyle = '#FFD7A8'
-  ctx.fillText('JEJU OLLE · 제주올레', 80, titleY - 110)
-  ctx.fillStyle = '#fff'
-  ctx.font = `800 150px ${FONT}`
-  ctx.fillText(`${course.id}코스`, 72, titleY + 30)
-  ctx.font = `600 52px ${FONT}`
-  ctx.fillText(course.name, 80, titleY + 110)
-  ctx.font = `500 40px ${FONT}`
-  ctx.fillStyle = 'rgba(255,255,255,0.8)'
-  ctx.fillText(`${fmtDate(walk.startedAt)} 완주`, 80, titleY + 175)
+  ctx.textAlign = 'left'
+  ctx.fillStyle = MUTED
+  ctx.font = `600 38px ${FONT}`
+  ctx.fillText('제주올레', 80, titleY + 40)
+  ctx.fillStyle = INK
+  ctx.font = `700 ${photoBlob ? 180 : 230}px ${SERIF}`
+  const numY = titleY + (photoBlob ? 210 : 270)
+  ctx.fillText(course.id, 70, numY)
+  const numW = ctx.measureText(course.id).width
+  ctx.font = `700 ${photoBlob ? 64 : 80}px ${SERIF}`
+  ctx.fillText('코스', 70 + numW + 16, numY)
+  ctx.font = `500 50px ${FONT}`
+  ctx.fillText(course.name, 80, numY + 90)
+  ctx.fillStyle = MUTED
+  ctx.font = `500 38px ${FONT}`
+  ctx.fillText(date, 80, numY + 150)
 
   drawRoute(ctx, walk.points, routeBox)
+  drawStamp(ctx, ...stamp, date)
 
   // 통계
   const stats = []
-  if (walk.distance > 0) stats.push(['거리', `${fmtKm(walk.distance)}km`])
-  if (walk.endedAt && walk.startedAt && walk.endedAt > walk.startedAt) stats.push(['시간', fmtDurationKo(walk.endedAt - walk.startedAt)])
-  if (walk.distance > 0) stats.push(['페이스', `${fmtPace(walk.endedAt - walk.startedAt, walk.distance)}/km`])
-  if (placeCount > 0) stats.push(['맛집', `${placeCount}곳`])
+  if (walk.distance > 0) stats.push(['거리', `${fmtKm(walk.distance)}`, 'km'])
+  if (walk.endedAt && walk.startedAt && walk.endedAt > walk.startedAt) stats.push(['시간', fmtDurationKo(walk.endedAt - walk.startedAt), ''])
+  if (walk.distance > 0) stats.push(['페이스', fmtPace(walk.endedAt - walk.startedAt, walk.distance), '/km'])
+  if (placeCount > 0) stats.push(['맛집', `${placeCount}`, '곳'])
 
-  // 4개면 2x2, 아니면 한 줄
   const cols = stats.length === 4 ? 2 : Math.max(stats.length, 1)
   const rows = Math.ceil(stats.length / cols)
   const colW = (W - 160) / cols
-  stats.forEach(([label, val], i) => {
+  const top = 1660 - rows * 150
+  if (stats.length) {
+    ctx.fillStyle = INK
+    ctx.fillRect(80, top - 20, W - 160, 3)
+  }
+  stats.forEach(([label, val, unit], i) => {
     const x = 80 + colW * (i % cols)
-    const y = 1640 - (rows - 1) * 150 + Math.floor(i / cols) * 150 - 80
-    ctx.fillStyle = 'rgba(255,255,255,0.7)'
-    ctx.font = `500 36px ${FONT}`
+    const y = top + 50 + Math.floor(i / cols) * 150
+    ctx.fillStyle = MUTED
+    ctx.font = `500 34px ${FONT}`
     ctx.fillText(label, x, y)
-    ctx.fillStyle = '#fff'
-    ctx.font = `800 64px ${FONT}`
+    ctx.fillStyle = INK
+    ctx.font = `700 66px ${SERIF}`
     ctx.fillText(val, x, y + 80)
+    if (unit) {
+      const w = ctx.measureText(val).width
+      ctx.font = `500 32px ${FONT}`
+      ctx.fillText(unit, x + w + 8, y + 80)
+    }
   })
 
-  // 하단 리본
-  ctx.fillStyle = '#F28C28'
-  ctx.fillRect(80, 1740, 120, 14)
-  ctx.fillStyle = '#5FC3F0'
-  ctx.fillRect(210, 1740, 120, 14)
-  ctx.fillStyle = 'rgba(255,255,255,0.85)'
-  ctx.font = `500 36px ${FONT}`
-  ctx.fillText(`#제주올레 #올레${course.id}코스 #올레길`, 80, 1820)
+  ctx.fillStyle = MUTED
+  ctx.font = `500 32px ${FONT}`
+  ctx.fillText(`#제주올레 #올레${course.id}코스`, 80, 1830)
 
   return new Promise((res) => c.toBlob(res, 'image/jpeg', 0.92))
 }
