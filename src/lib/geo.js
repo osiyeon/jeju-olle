@@ -41,3 +41,20 @@ export const todayISO = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
+
+// 걸은 시간(쉬는 시간 제외). 진행 중이면 now 기준, 일시정지 중이면 멈춘 시점까지
+export function walkMs(w, now = Date.now()) {
+  if (!w?.startedAt) return 0
+  const end = w.pausedAt || w.endedAt || now
+  return Math.max(0, end - w.startedAt - (w.pausedMs || 0))
+}
+
+// 일시정지로 끊긴 경로를 구간별로 나눔. 점의 4번째 값이 1이면 새 구간 시작
+export function segments(points = []) {
+  const out = []
+  for (const p of points) {
+    if (!out.length || p[3]) out.push([])
+    out[out.length - 1].push([p[0], p[1]])
+  }
+  return out
+}

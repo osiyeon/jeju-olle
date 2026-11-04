@@ -3,7 +3,7 @@ import MapView from './components/MapView'
 import { Doodle, TabIcon } from './components/Doodle'
 import { CourseSheet, PhotoThumb, PlaceForm, ShareSheet, Sheet, Stars } from './components/Modals'
 import { COURSES, courseById } from './lib/courses'
-import { fmtDate, fmtDuration, fmtDurationKo, fmtKm, fmtPace, haversine } from './lib/geo'
+import { fmtDate, fmtDuration, fmtDurationKo, fmtKm, fmtPace, haversine, walkMs } from './lib/geo'
 import { delPhoto, exportAll, importAll, load, save, savePhoto, uid } from './lib/store'
 
 const SIM = new URLSearchParams(location.search).has('sim') // ?sim → 가짜 GPS로 테스트
@@ -58,9 +58,17 @@ export default function App() {
     setPos(p)
     setGpsErr('')
     const a = activeRef.current
-    if (!a || p.accuracy > MAX_ACC) return
-    const pt = [p.lat, p.lng, p.t]
+    if (!a || a.pausedAt || p.accuracy > MAX_ACC) return
     const last = a.points[a.points.length - 1]
+    // 일시정지 후 첫 점: 쉬는 동안 움직인 거리는 빼고 새 구간으로 시작
+    if (last && a.resumedAt && last[2] < a.resumedAt) {
+      const next = { ...a, points: [...a.points, [p.lat, p.lng, p.t, 1]] }
+      activeRef.current = next
+      setActiveState(next)
+      save('active', next)
+      return
+    }
+    const pt = [p.lat, p.lng, p.t]
     let add = 0
     if (last) {
       const d = haversine(last, pt)
@@ -102,9 +110,10 @@ export default function App() {
     return () => navigator.geolocation.clearWatch(id)
   }, [onPosition])
 
-  // ---- 화면 꺼짐 방지 (걷는 중에만) ----
+  // ---- 화면 꺼짐 방지 (걷는 중에만, 쉬는 동안엔 풀어서 배터리 아낌) ----
+  const paused = !!active?.pausedAt
   useEffect(() => {
-    if (!active || !('wakeLock' in navigator)) return
+    if (!active || paused || !('wakeLock' in navigator)) return
     let lock
     const req = () => navigator.wakeLock.request('screen').then((l) => (lock = l)).catch(() => {})
     req()
@@ -114,7 +123,7 @@ export default function App() {
       document.removeEventListener('visibilitychange', onVis)
       lock?.release()
     }
-  }, [active?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [active?.id, paused]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!active) return
@@ -130,9 +139,18 @@ export default function App() {
     setFollow(true)
   }
 
+  const pauseWalk = () => setActive({ ...activeRef.current, pausedAt: Date.now() })
+  const resumeWalk = () => {
+    const a = activeRef.current
+    const t = Date.now()
+    setActive({ ...a, pausedAt: null, pausedMs: (a.pausedMs || 0) + (t - a.pausedAt), resumedAt: t })
+  }
+
   const finishWalk = (completed) => {
     const a = activeRef.current
-    const w = { ...a, endedAt: Date.now(), completed }
+    const t = Date.now()
+    const pausedMs = (a.pausedMs || 0) + (a.pausedAt ? t - a.pausedAt : 0)
+    const w = { ...a, endedAt: t, pausedAt: null, pausedMs, completed }
     updateWalks([w, ...walks])
     if (completed) updateDone({ ...done, [a.courseId]: { ...done[a.courseId], date: new Date(a.startedAt).toISOString().slice(0, 10), walkId: w.id } })
     setActive(null)
@@ -141,7 +159,7 @@ export default function App() {
   }
 
   const remaining = course?.end && pos ? haversine([pos.lat, pos.lng], [course.end.lat, course.end.lng]) : null
-  const elapsed = active ? now - active.startedAt : 0
+  const elapsed = active ? walkMs(active, now) : 0
   const coursePlaces = useMemo(() => places.filter((p) => p.lat != null), [places])
   const doneCount = Object.keys(done).length
 
@@ -213,9 +231,18 @@ export default function App() {
                   <div><span>시간</span><b>{fmtDuration(elapsed)}</b></div>
                   <div><span>페이스</span><b>{fmtPace(elapsed, active.distance)}</b></div>
                 </div>
-                {remaining != null && <p className="remain">{course.end.name}까지 직선 {fmtKm(remaining)}km</p>}
+                {paused ? (
+                  <p className="remain">쉬는 중 ({fmtDuration(now - active.pausedAt)}) · 시간과 거리는 멈춰 있어요.</p>
+                ) : (
+                  remaining != null && <p className="remain">{course.end.name}까지 직선 {fmtKm(remaining)}km</p>
+                )}
                 <div className="row">
                   <button className="btn" onClick={() => setSheet({ type: 'place' })}>맛집 저장</button>
+                  {paused ? (
+                    <button className="btn primary" onClick={resumeWalk}>다시 걷기</button>
+                  ) : (
+                    <button className="btn" onClick={pauseWalk}>잠깐 쉬기</button>
+                  )}
                   <button className="btn danger" onClick={() => setSheet({ type: 'finish' })}>그만 걷기</button>
                 </div>
               </>
@@ -326,7 +353,7 @@ export default function App() {
                 </div>
                 <div className="right">
                   <b>{fmtKm(w.distance)}km</b>
-                  <small>{fmtDurationKo(w.endedAt - w.startedAt)}</small>
+                  <small>{fmtDurationKo(walkMs(w))}</small>
                 </div>
               </li>
             ))}
@@ -405,8 +432,8 @@ export default function App() {
           </div>
           <div className="stats">
             <div><span>거리</span><b>{fmtKm(sheet.walk.distance)}<small>km</small></b></div>
-            <div><span>시간</span><b>{fmtDuration(sheet.walk.endedAt - sheet.walk.startedAt)}</b></div>
-            <div><span>페이스</span><b>{fmtPace(sheet.walk.endedAt - sheet.walk.startedAt, sheet.walk.distance)}</b></div>
+            <div><span>시간</span><b>{fmtDuration(walkMs(sheet.walk))}</b></div>
+            <div><span>페이스</span><b>{fmtPace(walkMs(sheet.walk), sheet.walk.distance)}</b></div>
           </div>
           <button className="btn primary block" onClick={() => setSheet({ type: 'share', walk: sheet.walk })}>공유 카드 만들기</button>
           <button
