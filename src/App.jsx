@@ -82,7 +82,7 @@ export default function App() {
       const e = c?.end || { lat: 33.5592, lng: 126.7433 }
       const id = setInterval(() => {
         i++
-        const f = Math.min(1, i / 600)
+        const f = Math.min(1, i / 1500) // 약 7m/s, 속도 필터(12m/s)에 안 걸리게
         onPosition({
           lat: s.lat + (e.lat - s.lat) * f + Math.sin(i / 20) * 0.001,
           lng: s.lng + (e.lng - s.lng) * f,
@@ -159,7 +159,14 @@ export default function App() {
 
   const shareForCourse = (cid) => {
     const rec = done[cid]
-    const w = walks.find((x) => x.id === rec?.walkId) || { startedAt: new Date(rec.date).getTime(), points: [], distance: 0, courseId: cid }
+    const t = new Date(rec.date).getTime()
+    const w = walks.find((x) => x.id === rec?.walkId) || {
+      courseId: cid,
+      startedAt: t,
+      endedAt: rec.minutes ? t + rec.minutes * 60000 : undefined,
+      distance: rec.km ? rec.km * 1000 : 0,
+      points: [],
+    }
     setSheet({ type: 'share', walk: w })
   }
 

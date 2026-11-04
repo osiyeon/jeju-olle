@@ -1,4 +1,4 @@
-import { fmtKm, fmtDurationKo, fmtPace, fmtDate } from './geo'
+import { fmtKm, fmtPace, fmtDate } from './geo'
 
 const FONT = '-apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif'
 const SERIF = 'AppleMyungjo, "Nanum Myeongjo", "Noto Serif KR", serif'
@@ -95,6 +95,13 @@ function drawStamp(ctx, cx, cy, r, date) {
   ctx.restore()
 }
 
+// 5시간 12분 → ['5', '시간', '12', '분']
+function durParts(ms) {
+  const m = Math.round(ms / 60000)
+  const h = Math.floor(m / 60)
+  return h > 0 ? [String(h), '시간', String(m % 60), '분'] : [String(m), '분']
+}
+
 export async function makeShareCard({ walk, course, photoBlob, placeCount = 0 }) {
   const c = document.createElement('canvas')
   c.width = W
@@ -148,36 +155,40 @@ export async function makeShareCard({ walk, course, photoBlob, placeCount = 0 })
   drawRoute(ctx, walk.points, routeBox)
   drawStamp(ctx, ...stamp, date)
 
-  // 통계
-  const stats = []
-  if (walk.distance > 0) stats.push(['거리', `${fmtKm(walk.distance)}`, 'km'])
-  if (walk.endedAt && walk.startedAt && walk.endedAt > walk.startedAt) stats.push(['시간', fmtDurationKo(walk.endedAt - walk.startedAt), ''])
-  if (walk.distance > 0) stats.push(['페이스', fmtPace(walk.endedAt - walk.startedAt, walk.distance), '/km'])
-  if (placeCount > 0) stats.push(['맛집', `${placeCount}`, '곳'])
+  // 거리 · 시간을 크게, 페이스 · 맛집은 아래 한 줄로
+  const ms = walk.endedAt && walk.startedAt ? walk.endedAt - walk.startedAt : 0
+  const hero = []
+  if (walk.distance > 0) hero.push(['거리', [fmtKm(walk.distance), 'km']])
+  if (ms > 0) hero.push(['걸린 시간', durParts(ms)])
+  const sub = []
+  if (walk.distance > 0 && ms > 0) sub.push(`페이스 ${fmtPace(ms, walk.distance)}/km`)
+  if (placeCount > 0) sub.push(`맛집 ${placeCount}곳`)
 
-  const cols = stats.length === 4 ? 2 : Math.max(stats.length, 1)
-  const rows = Math.ceil(stats.length / cols)
-  const colW = (W - 160) / cols
-  const top = 1660 - rows * 150
-  if (stats.length) {
+  if (hero.length) {
     ctx.fillStyle = INK
-    ctx.fillRect(80, top - 20, W - 160, 3)
+    ctx.fillRect(80, 1460, W - 160, 3)
+    const colW = (W - 160) / 2
+    hero.forEach(([label, parts], i) => {
+      const x = 80 + colW * i
+      ctx.fillStyle = MUTED
+      ctx.font = `500 34px ${FONT}`
+      ctx.fillText(label, x, 1530)
+      // [값, 단위, 값, 단위...] 를 이어서 그림
+      let cx = x
+      for (let k = 0; k < parts.length; k++) {
+        const isUnit = k % 2 === 1
+        ctx.fillStyle = INK
+        ctx.font = isUnit ? `500 38px ${FONT}` : `700 104px ${SERIF}`
+        ctx.fillText(parts[k], cx, 1645)
+        cx += ctx.measureText(parts[k]).width + (isUnit ? 18 : 8)
+      }
+    })
   }
-  stats.forEach(([label, val, unit], i) => {
-    const x = 80 + colW * (i % cols)
-    const y = top + 50 + Math.floor(i / cols) * 150
+  if (sub.length) {
     ctx.fillStyle = MUTED
     ctx.font = `500 34px ${FONT}`
-    ctx.fillText(label, x, y)
-    ctx.fillStyle = INK
-    ctx.font = `700 66px ${SERIF}`
-    ctx.fillText(val, x, y + 80)
-    if (unit) {
-      const w = ctx.measureText(val).width
-      ctx.font = `500 32px ${FONT}`
-      ctx.fillText(unit, x + w + 8, y + 80)
-    }
-  })
+    ctx.fillText(sub.join('   ·   '), 80, 1730)
+  }
 
   ctx.fillStyle = MUTED
   ctx.font = `500 32px ${FONT}`

@@ -132,6 +132,10 @@ export function ShareSheet({ walk, course, placeCount, onClose }) {
 export function CourseSheet({ course, record, onSave, onRemove, onWalk, onShare, onClose }) {
   const [date, setDate] = useState(record?.date || todayISO())
   const [memo, setMemo] = useState(record?.memo || '')
+  const [km, setKm] = useState(record?.km ?? course.km ?? '')
+  const [hh, setHh] = useState(record?.minutes ? String(Math.floor(record.minutes / 60)) : '')
+  const [mm, setMm] = useState(record?.minutes ? String(record.minutes % 60) : '')
+  const minutes = (Number(hh) || 0) * 60 + (Number(mm) || 0)
   return (
     <Sheet title={`${course.id}코스 · ${course.name}`} onClose={onClose}>
       {course.start && (
@@ -141,8 +145,19 @@ export function CourseSheet({ course, record, onSave, onRemove, onWalk, onShare,
         </p>
       )}
       <label>완주한 날<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+      {!record?.walkId && (
+        <>
+          <label>걸은 거리 (km)<input type="number" inputMode="decimal" step="0.1" value={km} onChange={(e) => setKm(e.target.value)} placeholder="예) 19.4" /></label>
+          <label>걸린 시간
+            <div className="time-inputs">
+              <input type="number" inputMode="numeric" value={hh} onChange={(e) => setHh(e.target.value)} placeholder="0" /><span>시간</span>
+              <input type="number" inputMode="numeric" value={mm} onChange={(e) => setMm(e.target.value)} placeholder="0" /><span>분</span>
+            </div>
+          </label>
+        </>
+      )}
       <label>메모<textarea rows={3} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="기억하고 싶은 것" /></label>
-      <button className="btn primary block" onClick={() => onSave({ ...record, date, memo })}>{record ? '저장' : '완주로 기록'}</button>
+      <button className="btn primary block" onClick={() => onSave({ ...record, date, memo, ...(record?.walkId ? {} : { km: Number(km) || null, minutes: minutes || null }) })}>{record ? '저장' : '완주로 기록'}</button>
       <div className="row">
         <button className="btn" onClick={onWalk}>이 코스 걷기</button>
         {record && <button className="btn" onClick={onShare}>공유 카드</button>}

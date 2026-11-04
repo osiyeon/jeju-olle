@@ -143,3 +143,13 @@ label .stars button { font-size: 28px; padding: 0 3px; }
 .pick-list li b { font-family: var(--serif); margin-right: 4px; }
 .pick-list li.on { color: var(--tang); }
 .pick-list .tag { float: right; }
+
+/* iOS Safari 날짜 입력: 기본 모양이 높이·정렬이 어긋나서 직접 맞춤 */
+.sheet input[type=date] { -webkit-appearance: none; appearance: none; min-height: 48px; min-width: 0; max-width: 100%; text-align: left; line-height: 22px; }
+.sheet input[type=date]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+.sheet input[type=date]::-webkit-calendar-picker-indicator { opacity: .5; }
+.time-inputs { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.time-inputs input { margin-top: 0 !important; flex: 1; min-width: 0; }
+.time-inputs span { color: var(--ink); font-weight: 500; font-size: 15px; }
+.sheet input[type=number]::-webkit-inner-spin-button, .sheet input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.sheet input[type=number] { -moz-appearance: textfield; }
