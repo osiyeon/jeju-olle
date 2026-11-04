@@ -37,7 +37,8 @@
 ## 배포
 - `main` push → GitHub Actions(`.github/workflows/deploy.yml`) → GitHub Pages
 - https://osiyeon.github.io/jeju-olle/ · 저장소 https://github.com/osiyeon/jeju-olle
-- `vite.config.js`의 `base: './'` 덕분에 서브경로/커스텀 도메인 모두 동작. 커스텀 도메인은 아직 미연결(`public/CNAME` 추가 필요)
+- `vite.config.js`의 `base: './'` 덕분에 서브경로/커스텀 도메인 모두 동작. 커스텀 도메인은 아직 미연결. Actions 배포라 CNAME 파일은 무시됨 → DNS CNAME 레코드 + 저장소 Settings > Pages > Custom domain에서 설정
+- 도메인을 바꾸면 IndexedDB가 출처(origin)별이라 기존 주소의 기록이 새 주소로 안 넘어감. 기존 주소에서 백업 → 새 주소에서 복원
 
 ## 알려진 제약
 - iOS Safari는 화면이 꺼지면 GPS가 멈춘다 (모바일 웹 한계)
