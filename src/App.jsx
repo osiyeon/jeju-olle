@@ -5,7 +5,7 @@ import { CourseSheet, PhotoThumb, PlaceForm, ShareSheet, Sheet, Stars } from './
 import { COURSES, courseById } from './lib/courses'
 import { fmtDate, fmtDuration, fmtDurationKo, fmtKm, fmtPace, haversine, walkMs } from './lib/geo'
 import { delPhoto, exportAll, importAll, load, save, savePhoto, uid } from './lib/store'
-import { mapSource, parseShared, readClipboard } from './lib/mapLink'
+import { mapSource, parseShared, readClipboard, safeUrl } from './lib/mapLink'
 
 const SIM = new URLSearchParams(location.search).has('sim') // ?sim → 가짜 GPS로 테스트
 const MAX_ACC = 50 // m, 이보다 부정확한 위치는 경로에 안 넣음
@@ -175,8 +175,8 @@ export default function App() {
   const addLink = async (p) => {
     const t = (await readClipboard()) ?? prompt('지도 앱에서 복사한 링크를 붙여넣어 주세요')
     const r = parseShared(t || '')
-    if (!r.url) return alert('복사한 내용에 링크가 없어요. 지도 앱에서 공유 → 복사를 먼저 눌러 주세요.')
-    updatePlaces(places.map((x) => (x.id === p.id ? { ...x, link: r.url, address: x.address || r.address } : x)))
+    if (!safeUrl(r.url)) return alert('복사한 내용에 링크가 없어요. 지도 앱에서 공유 → 복사를 먼저 눌러 주세요.')
+    updatePlaces(places.map((x) => (x.id === p.id ? { ...x, link: safeUrl(r.url), address: x.address || r.address } : x)))
   }
   const removePlace = async (p) => {
     if (!confirm(`'${p.name}' 삭제할까요?`)) return
@@ -327,18 +327,18 @@ export default function App() {
                   {p.address && <small>{p.address}</small>}
                   <small>{p.courseId && `${p.courseId}코스 · `}{fmtDate(p.createdAt)}</small>
                   <div className="links">
-                    {p.link ? (
-                      <a href={p.link} target="_blank" rel="noreferrer">{mapSource(p.link)}</a>
+                    {safeUrl(p.link) ? (
+                      <a href={safeUrl(p.link)} target="_blank" rel="noreferrer">{mapSource(p.link)}</a>
                     ) : (
                       <button className="add-link" onClick={() => addLink(p)}>링크 넣기</button>
                     )}
                     {p.lat != null && (
                       <>
-                        {!p.link && <a href={`https://map.kakao.com/link/map/${encodeURIComponent(p.name)},${p.lat},${p.lng}`} target="_blank" rel="noreferrer">지도</a>}
+                        {!safeUrl(p.link) && <a href={`https://map.kakao.com/link/map/${encodeURIComponent(p.name)},${p.lat},${p.lng}`} target="_blank" rel="noreferrer">지도</a>}
                         <a href={`https://map.kakao.com/link/to/${encodeURIComponent(p.name)},${p.lat},${p.lng}`} target="_blank" rel="noreferrer">길찾기</a>
                       </>
                     )}
-                    {!p.link && <a href={`https://map.naver.com/p/search/${encodeURIComponent('제주 ' + p.name)}`} target="_blank" rel="noreferrer">네이버</a>}
+                    {!safeUrl(p.link) && <a href={`https://map.naver.com/p/search/${encodeURIComponent('제주 ' + p.name)}`} target="_blank" rel="noreferrer">네이버</a>}
                     <button onClick={() => removePlace(p)}>삭제</button>
                   </div>
                 </div>

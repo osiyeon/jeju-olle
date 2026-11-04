@@ -14,6 +14,16 @@ export function parseShared(text = '') {
   return { url, name: lines[0] || '', address: lines[1] || '' }
 }
 
+// http/https 주소만 허용 (javascript: 같은 주소가 링크로 들어가지 않게). 아니면 ''
+export function safeUrl(u) {
+  try {
+    const x = new URL(String(u || '').trim())
+    return x.protocol === 'http:' || x.protocol === 'https:' ? x.href : ''
+  } catch {
+    return ''
+  }
+}
+
 export function mapSource(url = '') {
   if (/naver\.(me|com)/.test(url)) return '네이버 지도'
   if (/kko\.to|kakao\.com/.test(url)) return '카카오맵'

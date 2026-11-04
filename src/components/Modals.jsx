@@ -3,7 +3,7 @@ import { COURSES } from '../lib/courses'
 import { loadPhoto, resizeImage } from '../lib/store'
 import { makeShareCard, shareOrDownload } from '../lib/shareCard'
 import { todayISO } from '../lib/geo'
-import { parseShared, readClipboard, searchLinks } from '../lib/mapLink'
+import { parseShared, readClipboard, safeUrl, searchLinks } from '../lib/mapLink'
 
 export function Sheet({ title, onClose, children }) {
   return (
@@ -121,7 +121,7 @@ export function PlaceForm({ pos, courseId, onSave, onClose }) {
         disabled={!name.trim() || busy}
         onClick={async () => {
           setBusy(true)
-          await onSave({ name: name.trim(), memo, rating, courseId: cid, lat: pos?.lat, lng: pos?.lng, link: link.trim(), address }, photo)
+          await onSave({ name: name.trim(), memo, rating, courseId: cid, lat: pos?.lat, lng: pos?.lng, link: safeUrl(link), address }, photo)
         }}
       >
         저장
