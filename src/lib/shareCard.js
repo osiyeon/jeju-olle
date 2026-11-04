@@ -1,4 +1,4 @@
-import { fmtKm, fmtPace, fmtDate } from './geo'
+import { fmtKm, fmtPace, fmtDate, segments, walkMs } from './geo'
 import { courseTrack } from './courses'
 
 const FONT = '-apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif'
@@ -37,10 +37,10 @@ function drawCover(ctx, img, x, y, w, h) {
 // 걸은 경로(walk)와 코스 경로(course, 구간 배열)를 같은 축척으로 그림.
 // 걸은 경로가 없으면 코스 경로를 주인공으로 그린다.
 function drawRoute(ctx, walkPts, courseSegs, box, ends) {
-  const walk = walkPts?.length > 1 ? walkPts : null
+  const walk = walkPts?.length > 1 ? segments(walkPts) : null
   const course = courseSegs?.length ? courseSegs : null
   if (!walk && !course) return false
-  const all = [...(walk || []), ...(course || []).flat()]
+  const all = [...(walk || []).flat(), ...(course || []).flat()]
   const k = Math.cos((all[0][0] * Math.PI) / 180)
   const xs = all.map((p) => p[1] * k)
   const ys = all.map((p) => -p[0])
@@ -69,8 +69,8 @@ function drawRoute(ctx, walkPts, courseSegs, box, ends) {
   }
   let P
   if (walk) {
-    P = proj(walk)
-    line(P, TANG, big ? 12 : 8)
+    walk.forEach((seg) => line(proj(seg), TANG, big ? 12 : 8))
+    P = proj([walk[0][0], walk.at(-1).at(-1)])
   } else {
     // 코스만 그릴 때: 공식 시작/종점에 가장 가까운 선 끝에 점. 좌표 없는 코스는 점 생략
     if (!ends) return true
@@ -184,7 +184,7 @@ export async function makeShareCard({ walk, course, photoBlob, placeCount = 0 })
   drawStamp(ctx, ...stamp, date)
 
   // 거리 · 시간을 크게, 페이스 · 맛집은 아래 한 줄로
-  const ms = walk.endedAt && walk.startedAt ? walk.endedAt - walk.startedAt : 0
+  const ms = walk.endedAt ? walkMs(walk) : 0
   const hero = []
   if (walk.distance > 0) hero.push(['거리', [fmtKm(walk.distance), 'km']])
   if (ms > 0) hero.push(['걸린 시간', durParts(ms)])

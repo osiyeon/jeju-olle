@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import { courseTrack } from '../lib/courses'
+import { segments } from '../lib/geo'
 
 const JEJU = [33.38, 126.55]
 
@@ -67,7 +68,7 @@ export default function MapView({ current, points = [], places = [], course, fol
 
   // 경로
   useEffect(() => {
-    L_.current.track.setLatLngs(points.map((p) => [p[0], p[1]]))
+    L_.current.track.setLatLngs(segments(points)) // 일시정지로 끊긴 곳은 선을 잇지 않음
     if (!fitTrack) return
     const b = L.latLngBounds([])
     if (points.length > 1) b.extend(L_.current.track.getBounds())

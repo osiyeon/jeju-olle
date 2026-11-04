@@ -25,6 +25,7 @@
 
 ## GPS 규칙
 오차 50m 초과 버림, 8m 미만 이동 무시, 초속 12m 초과(순간이동) 무시. 진행 중 기록은 점마다 `active` 키에 저장 → 새로고침해도 이어짐.
+일시정지: `active.pausedAt`/`pausedMs`/`resumedAt`. 쉬는 동안 점을 안 받고, 다시 걸을 때 첫 점은 `[lat,lng,t,1]`(새 구간)로 넣어 쉬는 사이 이동 거리를 빼고 선도 안 잇는다. 걸은 시간은 `walkMs()`(쉬는 시간 제외), 경로 구간은 `segments()` (`lib/geo.js`). 쉬는 동안엔 Wake Lock 해제.
 
 ## 개발 · 테스트
 - `npm run dev` → `http://localhost:5173/?sim` 은 가짜 GPS(코스 시작→종점 이동)
