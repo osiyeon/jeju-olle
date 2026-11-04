@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import MapView from './components/MapView'
+import LocationPicker from './components/LocationPicker'
 import { Doodle, TabIcon } from './components/Doodle'
 import { CourseSheet, PhotoThumb, PlaceForm, ShareSheet, Sheet, Stars } from './components/Modals'
 import { COURSES, courseById } from './lib/courses'
@@ -350,6 +351,7 @@ export default function App() {
                       </>
                     )}
                     {!safeUrl(p.link) && <a href={`https://map.naver.com/p/search/${encodeURIComponent('제주 ' + p.name)}`} target="_blank" rel="noreferrer">네이버</a>}
+                    <button className="add-link" onClick={() => setSheet({ type: 'movePlace', place: p })}>{p.lat != null ? '위치 고치기' : '위치 넣기'}</button>
                     <button onClick={() => removePlace(p)}>삭제</button>
                   </div>
                 </div>
@@ -401,6 +403,21 @@ export default function App() {
 
       {/* ===== 시트 ===== */}
       {sheet?.type === 'place' && <PlaceForm pos={pos} courseId={active?.courseId || courseId} onSave={savePlace} onClose={() => setSheet(null)} />}
+
+      {sheet?.type === 'movePlace' && (
+        <Sheet title={`${sheet.place.name} 위치`} onClose={() => setSheet(null)}>
+          <LocationPicker
+            initial={sheet.place.lat != null ? sheet.place : null}
+            current={pos}
+            onPick={(l) => {
+              updatePlaces(places.map((x) => (x.id === sheet.place.id ? { ...x, ...l } : x)))
+              setPlaceFocus({ id: sheet.place.id })
+              setSheet(null)
+            }}
+            onCancel={() => setSheet(null)}
+          />
+        </Sheet>
+      )}
 
       {sheet?.type === 'pickCourse' && (
         <Sheet title="코스 선택" onClose={() => setSheet(null)}>

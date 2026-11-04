@@ -4,6 +4,7 @@ import { loadPhoto, resizeImage } from '../lib/store'
 import { makeShareCard, shareOrDownload } from '../lib/shareCard'
 import { todayISO } from '../lib/geo'
 import { parseShared, readClipboard, safeUrl, searchLinks } from '../lib/mapLink'
+import LocationPicker from './LocationPicker'
 
 export function Sheet({ title, onClose, children }) {
   return (
@@ -52,6 +53,10 @@ export function PlaceForm({ pos, courseId, onSave, onClose }) {
   const [link, setLink] = useState('')
   const [address, setAddress] = useState('')
   const [linkMsg, setLinkMsg] = useState('')
+  // 위치: 기본은 지금 GPS 위치. 지도에서 고르면 그걸 씀
+  const [picked, setPicked] = useState(null)
+  const [picking, setPicking] = useState(false)
+  const where = picked || (pos ? { lat: pos.lat, lng: pos.lng } : null)
 
   // 지도 앱에서 복사한 글 → 링크, (이름이 비어 있으면) 이름, 주소
   const applyShared = (text) => {
@@ -77,8 +82,23 @@ export function PlaceForm({ pos, courseId, onSave, onClose }) {
   }
 
   return (
-    <Sheet title="맛집 저장" onClose={onClose}>
-      {!pos && <p className="warn">위치를 아직 못 잡았어요. 지도 핀 없이 저장돼요.</p>}
+    <Sheet title={picking ? '가게 위치 고르기' : '맛집 저장'} onClose={onClose}>
+      {picking ? (
+        <LocationPicker
+          initial={where}
+          current={pos}
+          onPick={(l) => (setPicked(l), setPicking(false))}
+          onCancel={() => setPicking(false)}
+        />
+      ) : (
+      <>
+      <div className="loc-row">
+        <span>
+          {picked ? '지도에서 고른 위치' : pos ? `지금 위치 (±${Math.round(pos.accuracy)}m)` : '위치를 아직 못 잡았어요'}
+          <small>가게가 여기 아니면 직접 골라 주세요</small>
+        </span>
+        <button type="button" className="btn" onClick={() => setPicking(true)}>지도에서 고르기</button>
+      </div>
       <label>이름<input value={name} onChange={(e) => setName(e.target.value)} placeholder="예) 함덕 고기국수" autoFocus /></label>
       <label>지도 링크
         <div className="link-input">
@@ -121,11 +141,13 @@ export function PlaceForm({ pos, courseId, onSave, onClose }) {
         disabled={!name.trim() || busy}
         onClick={async () => {
           setBusy(true)
-          await onSave({ name: name.trim(), memo, rating, courseId: cid, lat: pos?.lat, lng: pos?.lng, link: safeUrl(link), address }, photo)
+          await onSave({ name: name.trim(), memo, rating, courseId: cid, lat: where?.lat, lng: where?.lng, link: safeUrl(link), address }, photo)
         }}
       >
         저장
       </button>
+      </>
+      )}
     </Sheet>
   )
 }
