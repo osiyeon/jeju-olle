@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import L from 'leaflet'
+import { courseTrack } from '../lib/courses'
 
 const JEJU = [33.38, 126.55]
 
@@ -26,7 +27,9 @@ export default function MapView({ current, points = [], places = [], course, fol
       maxZoom: 19,
       attribution: '© OpenStreetMap',
     }).addTo(m)
+    m.createPane('coursePane').style.zIndex = 350 // 걸은 경로(overlayPane 400) 아래
     L_.current = {
+      courseLine: L.layerGroup().addTo(m),
       course: L.layerGroup().addTo(m),
       places: L.layerGroup().addTo(m),
       track: L.polyline([], { color: '#dc6b25', weight: 5, opacity: 0.95 }).addTo(m),
@@ -43,6 +46,10 @@ export default function MapView({ current, points = [], places = [], course, fol
   useEffect(() => {
     const g = L_.current.course
     g.clearLayers()
+    const line = L_.current.courseLine
+    line.clearLayers()
+    const segs = course && courseTrack(course.id)
+    if (segs) L.polyline(segs, { pane: 'coursePane', color: '#24577a', weight: 4, opacity: 0.6, dashArray: '1 8', lineCap: 'round' }).addTo(line)
     if (course?.start) L.marker([course.start.lat, course.start.lng], { icon: pin('시작', '#24577a') }).bindPopup(course.start.name).addTo(g)
     if (course?.end) L.marker([course.end.lat, course.end.lng], { icon: pin('종점', '#b8432c') }).bindPopup(course.end.name).addTo(g)
   }, [course])
@@ -61,8 +68,12 @@ export default function MapView({ current, points = [], places = [], course, fol
   // 경로
   useEffect(() => {
     L_.current.track.setLatLngs(points.map((p) => [p[0], p[1]]))
-    if (fitTrack && points.length > 1) map.current.fitBounds(L_.current.track.getBounds(), { padding: [30, 30] })
-  }, [points, fitTrack])
+    if (!fitTrack) return
+    const b = L.latLngBounds([])
+    if (points.length > 1) b.extend(L_.current.track.getBounds())
+    L_.current.courseLine.eachLayer((l) => b.extend(l.getBounds()))
+    if (b.isValid()) map.current.fitBounds(b, { padding: [30, 30] })
+  }, [points, fitTrack, course])
 
   // 내 위치
   useEffect(() => {

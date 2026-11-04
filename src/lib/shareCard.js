@@ -1,4 +1,5 @@
 import { fmtKm, fmtPace, fmtDate } from './geo'
+import { courseTrack } from './courses'
 
 const FONT = '-apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif'
 const SERIF = 'AppleMyungjo, "Nanum Myeongjo", "Noto Serif KR", serif'
@@ -33,27 +34,50 @@ function drawCover(ctx, img, x, y, w, h) {
   ctx.restore()
 }
 
-function drawRoute(ctx, points, box) {
-  if (!points || points.length < 2) return
-  const lat0 = points[0][0]
-  const k = Math.cos((lat0 * Math.PI) / 180)
-  const xy = points.map(([lat, lng]) => [lng * k, -lat])
-  const xs = xy.map((p) => p[0])
-  const ys = xy.map((p) => p[1])
+// 걸은 경로(walk)와 코스 경로(course, 구간 배열)를 같은 축척으로 그림.
+// 걸은 경로가 없으면 코스 경로를 주인공으로 그린다.
+function drawRoute(ctx, walkPts, courseSegs, box, ends) {
+  const walk = walkPts?.length > 1 ? walkPts : null
+  const course = courseSegs?.length ? courseSegs : null
+  if (!walk && !course) return false
+  const all = [...(walk || []), ...(course || []).flat()]
+  const k = Math.cos((all[0][0] * Math.PI) / 180)
+  const xs = all.map((p) => p[1] * k)
+  const ys = all.map((p) => -p[0])
   const minX = Math.min(...xs), maxX = Math.max(...xs)
   const minY = Math.min(...ys), maxY = Math.max(...ys)
   const s = Math.min(box.w / (maxX - minX || 1e-9), box.h / (maxY - minY || 1e-9))
   const ox = box.x + (box.w - (maxX - minX) * s) / 2
   const oy = box.y + (box.h - (maxY - minY) * s) / 2
-  const P = xy.map(([x, y]) => [ox + (x - minX) * s, oy + (y - minY) * s])
-
+  const proj = (pts) => pts.map(([lat, lng]) => [ox + (lng * k - minX) * s, oy + (-lat - minY) * s])
+  const big = box.w > 500
+  const line = (P, color, width, dash = []) => {
+    ctx.beginPath()
+    P.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)))
+    ctx.setLineDash(dash)
+    ctx.strokeStyle = color
+    ctx.lineWidth = width
+    ctx.stroke()
+    ctx.setLineDash([])
+  }
   ctx.lineJoin = 'round'
   ctx.lineCap = 'round'
-  ctx.beginPath()
-  P.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)))
-  ctx.strokeStyle = TANG
-  ctx.lineWidth = box.w > 500 ? 12 : 8
-  ctx.stroke()
+
+  if (course) {
+    // 걸은 경로가 있으면 코스는 옅은 점선으로 뒤에, 없으면 진하게
+    course.forEach((seg) => line(proj(seg), walk ? 'rgba(36,87,122,0.35)' : TANG, walk ? (big ? 6 : 4) : big ? 12 : 8, walk ? [2, big ? 16 : 11] : []))
+  }
+  let P
+  if (walk) {
+    P = proj(walk)
+    line(P, TANG, big ? 12 : 8)
+  } else {
+    // 코스만 그릴 때: 공식 시작/종점에 가장 가까운 선 끝에 점. 좌표 없는 코스는 점 생략
+    if (!ends) return true
+    const tips = course.flatMap((seg) => [seg[0], seg[seg.length - 1]])
+    const near = (pt) => tips.reduce((a, b) => (dist2(a, pt) <= dist2(b, pt) ? a : b))
+    P = proj([near(ends[0]), near(ends[1])])
+  }
 
   const r = box.w > 500 ? 14 : 10
   const [sx, sy] = P[0]
@@ -69,6 +93,7 @@ function drawRoute(ctx, points, box) {
   ctx.arc(ex, ey, r, 0, Math.PI * 2)
   ctx.fillStyle = INK
   ctx.fill()
+  return true
 }
 
 // 고무 도장 느낌의 완주 스탬프
@@ -102,6 +127,8 @@ function durParts(ms) {
   return h > 0 ? [String(h), '시간', String(m % 60), '분'] : [String(m), '분']
 }
 
+const dist2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2
+
 export async function makeShareCard({ walk, course, photoBlob, placeCount = 0 }) {
   const c = document.createElement('canvas')
   c.width = W
@@ -131,7 +158,7 @@ export async function makeShareCard({ walk, course, photoBlob, placeCount = 0 })
     ribbon(W - 140, 0)
     titleY = 140
     routeBox = { x: 100, y: 660, w: 880, h: 620 }
-    stamp = walk.points?.length > 1 ? [W - 230, 1290, 125] : [W / 2 + 60, 960, 210]
+    stamp = walk.points?.length > 1 || courseTrack(course.id) ? [W - 230, 1290, 125] : [W / 2 + 60, 960, 210]
   }
 
   ctx.textBaseline = 'alphabetic'
@@ -152,7 +179,8 @@ export async function makeShareCard({ walk, course, photoBlob, placeCount = 0 })
   ctx.font = `500 38px ${FONT}`
   ctx.fillText(date, 80, numY + 150)
 
-  drawRoute(ctx, walk.points, routeBox)
+  const ends = course.start && [[course.start.lat, course.start.lng], [course.end.lat, course.end.lng]]
+  drawRoute(ctx, walk.points, courseTrack(course.id), routeBox, ends)
   drawStamp(ctx, ...stamp, date)
 
   // 거리 · 시간을 크게, 페이스 · 맛집은 아래 한 줄로
@@ -193,6 +221,12 @@ export async function makeShareCard({ walk, course, photoBlob, placeCount = 0 })
   ctx.fillStyle = MUTED
   ctx.font = `500 32px ${FONT}`
   ctx.fillText(`#제주올레 #올레${course.id}코스`, 80, 1830)
+  if (courseTrack(course.id)) {
+    ctx.textAlign = 'right'
+    ctx.font = `500 22px ${FONT}`
+    ctx.fillText('코스 경로 © OpenStreetMap', W - 80, 1830)
+    ctx.textAlign = 'left'
+  }
 
   return new Promise((res) => c.toBlob(res, 'image/jpeg', 0.92))
 }

@@ -164,7 +164,7 @@ export default function App() {
       courseId: cid,
       startedAt: t,
       endedAt: rec.minutes ? t + rec.minutes * 60000 : undefined,
-      distance: rec.km ? rec.km * 1000 : 0,
+      distance: (rec.km || courseById(cid)?.km || 0) * 1000,
       points: [],
     }
     setSheet({ type: 'share', walk: w })

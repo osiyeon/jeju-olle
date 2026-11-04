@@ -17,7 +17,8 @@
 - `src/App.jsx` — 탭 4개(걷기/코스/맛집/기록), GPS watchPosition, 걷기 시작/종료, Wake Lock
 - `src/components/MapView.jsx` — Leaflet 지도 (경로, 내 위치, 맛집 핀, 코스 시작/종점)
 - `src/components/Modals.jsx` — 바텀시트: 맛집 저장, 공유 카드, 코스 기록
-- `src/lib/courses.js` — 코스 27개. 19·20코스만 시작/종점 좌표(근사값)
+- `src/lib/courses.js` — 코스 27개 + 공식 거리(km). 19·20코스만 시작/종점 좌표(OSM 올레 시작점 표지 기준)
+- `src/lib/courseTracks.json` — 코스 경로(OSM relation을 단순화). 1·2·4·6·16·18·19·20코스만. 3·5·7은 OSM 데이터가 공식 거리와 크게 달라 뺐음
 - `src/lib/geo.js` — haversine, 포맷 함수
 - `src/lib/store.js` — IndexedDB, 사진 리사이즈, 백업/복원
 - `src/lib/shareCard.js` — 1080×1920 공유 카드 Canvas 렌더 + Web Share
@@ -37,4 +38,4 @@
 
 ## 알려진 제약
 - iOS Safari는 화면이 꺼지면 GPS가 멈춘다 (모바일 웹 한계)
-- 코스 좌표는 근사값. 공식 GPX 미적용
+- 코스 경로는 OSM 기여자 데이터라 현재 공식 경로와 다를 수 있음 (20코스는 18.7km로 공식 17.6km보다 김). 공유 카드에 OSM 출처 표기 필수(ODbL)
