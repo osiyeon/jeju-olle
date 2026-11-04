@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import MapView from './components/MapView'
+import { Doodle, TabIcon } from './components/Doodle'
 import { CourseSheet, PhotoThumb, PlaceForm, ShareSheet, Sheet, Stars } from './components/Modals'
 import { COURSES, courseById } from './lib/courses'
 import { fmtDate, fmtDuration, fmtDurationKo, fmtKm, fmtPace, haversine } from './lib/geo'
@@ -170,7 +171,13 @@ export default function App() {
     setSheet({ type: 'share', walk: w })
   }
 
-  if (!ready) return <div className="splash">올레 기록장</div>
+  if (!ready)
+    return (
+      <div className="splash">
+        <Doodle name="gyul" size={72} />
+        <span>올레 기록장</span>
+      </div>
+    )
 
   return (
     <div className="app">
@@ -181,6 +188,7 @@ export default function App() {
 
           <div className="walk-top">
             <button className="course-chip" disabled={!!active} onClick={() => setSheet({ type: 'pickCourse' })}>
+              <Doodle name="gyul" size={20} className="chip-gyul" />
               <b>{course.id}코스</b>{course.name}{!active && <span className="caret">▼</span>}
             </button>
             {gpsErr && <div className="gps-err">{gpsErr}</div>}
@@ -194,6 +202,10 @@ export default function App() {
           )}
 
           <div className="walk-panel">
+            <div className="panel-deco">
+              <Doodle name="wave" size={50} />
+              <Doodle name="camellia" size={24} />
+            </div>
             {active ? (
               <>
                 <div className="stats">
@@ -230,15 +242,23 @@ export default function App() {
       {/* ===== 코스 ===== */}
       {tab === 'courses' && (
         <div className="page">
-          <h2>올레 스탬프</h2>
+          <div className="page-title">
+            <h2>올레 스탬프</h2>
+            <Doodle name="oreum" size={110} />
+          </div>
           <div className="progress">
             <p><b>{doneCount}</b> / {COURSES.length}코스</p>
-            <div className="ticks">{COURSES.map((c) => <i key={c.id} className={done[c.id] ? 'on' : ''} />)}</div>
+            <div className="gyul-row">
+              {COURSES.map((c) => <Doodle key={c.id} name={done[c.id] ? 'gyul' : 'ring'} size={done[c.id] ? 28 : 22} />)}
+            </div>
           </div>
           <ul className="course-list">
             {COURSES.map((c) => (
               <li key={c.id} className={done[c.id] ? 'done' : ''} onClick={() => setSheet({ type: 'course', id: c.id })}>
-                <span className="stamp">{c.id}</span>
+                <span className={done[c.id] ? 'stamp done' : 'stamp'}>
+                  <Doodle name={done[c.id] ? 'gyul' : 'ring'} size={52} />
+                  {!done[c.id] && <b>{c.id}</b>}
+                </span>
                 <div>
                   <b>{c.id}코스</b> <span>{c.name}</span>
                   {done[c.id] && <small>{done[c.id].date} 완주</small>}
@@ -256,7 +276,12 @@ export default function App() {
             <h2>맛집</h2>
             <button className="btn primary" onClick={() => setSheet({ type: 'place' })}>지금 위치 저장</button>
           </div>
-          {places.length === 0 && <p className="empty">아직 저장한 곳이 없어요.</p>}
+          {places.length === 0 && (
+            <div className="empty">
+              <Doodle name="bowl" size={96} />
+              <p>아직 저장한 곳이 없어요.<br />걷다가 맛있는 집을 만나면 남겨 두세요.</p>
+            </div>
+          )}
           <ul className="place-list">
             {places.map((p) => (
               <li key={p.id}>
@@ -286,7 +311,12 @@ export default function App() {
       {tab === 'history' && (
         <div className="page">
           <h2>걷기 기록</h2>
-          {walks.length === 0 && <p className="empty">아직 기록이 없어요.</p>}
+          {walks.length === 0 && (
+            <div className="empty">
+              <Doodle name="harubang" size={70} />
+              <p>아직 걸은 기록이 없어요.</p>
+            </div>
+          )}
           <ul className="walk-list">
             {walks.map((w) => (
               <li key={w.id} onClick={() => setSheet({ type: 'walk', walk: w })}>
@@ -302,12 +332,16 @@ export default function App() {
             ))}
           </ul>
           <Backup />
+          <div className="wall">
+            {[0, 1, 2, 3].map((i) => <Doodle key={i} name="stonewall" size={120} />)}
+          </div>
         </div>
       )}
 
       <nav className="tabs">
         {[['walk', '걷기'], ['courses', '코스'], ['places', '맛집'], ['history', '기록']].map(([k, l]) => (
           <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>
+            <TabIcon name={k} on={tab === k} />
             {l}
           </button>
         ))}

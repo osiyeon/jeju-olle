@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import { courseTrack } from '../lib/courses'
+import { doodleSvg } from '../lib/doodles'
 
 const JEJU = [33.38, 126.55]
 
@@ -12,7 +13,7 @@ const pin = (label, color) =>
     iconAnchor: [14, 34],
   })
 
-const dot = L.divIcon({ className: 'pin', html: '<div class="pin-dot"></div>', iconSize: [14, 14], iconAnchor: [7, 7] })
+const dot = L.divIcon({ className: 'pin pin-gyul', html: doodleSvg('gyul', 28), iconSize: [28, 28], iconAnchor: [14, 20] })
 
 // 지도는 Leaflet을 직접 다룬다 (react-leaflet 없이 가볍게)
 export default function MapView({ current, points = [], places = [], course, follow, onUserMove, fitTrack }) {
@@ -32,7 +33,7 @@ export default function MapView({ current, points = [], places = [], course, fol
       courseLine: L.layerGroup().addTo(m),
       course: L.layerGroup().addTo(m),
       places: L.layerGroup().addTo(m),
-      track: L.polyline([], { color: '#dc6b25', weight: 5, opacity: 0.95 }).addTo(m),
+      track: L.polyline([], { color: '#f08a24', weight: 6, opacity: 0.95 }).addTo(m),
       acc: L.circle(JEJU, { radius: 0, color: '#24577a', weight: 1, fillOpacity: 0.1 }),
       me: L.circleMarker(JEJU, { radius: 8, color: '#fff', weight: 3, fillColor: '#24577a', fillOpacity: 1 }),
     }
@@ -49,9 +50,9 @@ export default function MapView({ current, points = [], places = [], course, fol
     const line = L_.current.courseLine
     line.clearLayers()
     const segs = course && courseTrack(course.id)
-    if (segs) L.polyline(segs, { pane: 'coursePane', color: '#24577a', weight: 4, opacity: 0.6, dashArray: '1 8', lineCap: 'round' }).addTo(line)
-    if (course?.start) L.marker([course.start.lat, course.start.lng], { icon: pin('시작', '#24577a') }).bindPopup(course.start.name).addTo(g)
-    if (course?.end) L.marker([course.end.lat, course.end.lng], { icon: pin('종점', '#b8432c') }).bindPopup(course.end.name).addTo(g)
+    if (segs) L.polyline(segs, { pane: 'coursePane', color: '#3f7aa0', weight: 4, opacity: 0.7, dashArray: '1 9', lineCap: 'round' }).addTo(line)
+    if (course?.start) L.marker([course.start.lat, course.start.lng], { icon: pin('시작', '#bcd4e2') }).bindPopup(course.start.name).addTo(g)
+    if (course?.end) L.marker([course.end.lat, course.end.lng], { icon: pin('종점', '#f6d2cd') }).bindPopup(course.end.name).addTo(g)
   }, [course])
 
   // 맛집

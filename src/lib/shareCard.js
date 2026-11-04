@@ -1,14 +1,14 @@
 import { fmtKm, fmtPace, fmtDate } from './geo'
 import { courseTrack } from './courses'
+import { drawDoodle } from './doodles'
 
 const FONT = '-apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif'
-const SERIF = 'AppleMyungjo, "Nanum Myeongjo", "Noto Serif KR", serif'
-const PAPER = '#F3EFE6'
-const INK = '#24221E'
-const MUTED = '#827B6E'
-const TANG = '#DC6B25'
-const SEA = '#24577A'
-const STAMP = '#B8432C'
+const HAND = 'Gaegu, "Apple SD Gothic Neo", sans-serif'
+const PAPER = '#F6F1E6'
+const INK = '#3B342C'
+const MUTED = '#8A7F70'
+const TANG = '#F08A24'
+const STAMP = '#C8453A'
 const W = 1080
 const H = 1920
 
@@ -113,9 +113,9 @@ function drawStamp(ctx, cx, cy, r, date) {
   ctx.arc(0, 0, r - 14, 0, Math.PI * 2)
   ctx.stroke()
   ctx.textAlign = 'center'
-  ctx.font = `700 ${Math.round(r * 0.5)}px ${SERIF}`
+  ctx.font = `700 ${Math.round(r * 0.62)}px ${HAND}`
   ctx.fillText('완주', 0, r * 0.08)
-  ctx.font = `600 ${Math.round(r * 0.2)}px ${FONT}`
+  ctx.font = `700 ${Math.round(r * 0.24)}px ${HAND}`
   ctx.fillText(date, 0, r * 0.45)
   ctx.restore()
 }
@@ -130,6 +130,7 @@ function durParts(ms) {
 const dist2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2
 
 export async function makeShareCard({ walk, course, photoBlob, placeCount = 0 }) {
+  await Promise.all(['700 100px Gaegu', '400 40px Gaegu'].map((f) => document.fonts?.load(f).catch(() => {})))
   const c = document.createElement('canvas')
   c.width = W
   c.height = H
@@ -139,45 +140,52 @@ export async function makeShareCard({ walk, course, photoBlob, placeCount = 0 })
   ctx.fillStyle = PAPER
   ctx.fillRect(0, 0, W, H)
 
-  // 올레 리본 (주황·파랑)
-  const ribbon = (x, y) => {
-    ctx.fillStyle = TANG
-    ctx.fillRect(x, y, 16, 90)
-    ctx.fillStyle = SEA
-    ctx.fillRect(x + 22, y, 16, 90)
+  // 손으로 그은 물결선
+  const waveRule = (x, y, w) => {
+    for (let wx = x; wx < x + w - 10; wx += 116) drawDoodle(ctx, 'wave', wx, y, 120)
   }
 
   let titleY, routeBox, stamp
   if (photoBlob) {
     const img = await loadImg(photoBlob)
-    drawCover(ctx, img, 60, 60, W - 120, 860)
+    ctx.save()
+    ctx.translate(W / 2, 490)
+    ctx.rotate(-0.012)
+    ctx.fillStyle = INK
+    ctx.fillRect(-W / 2 + 54, -436, W - 108, 872)
+    drawCover(ctx, img, -W / 2 + 60, -430, W - 120, 860)
+    ctx.restore()
+    drawDoodle(ctx, 'gyul', 30, 10, 170, { rotate: -0.25 })
     titleY = 1000
     routeBox = { x: 660, y: 1010, w: 340, h: 320 }
     stamp = [W - 190, 860, 115]
   } else {
-    ribbon(W - 140, 0)
+    drawDoodle(ctx, 'gyul', 790, 90, 180, { rotate: -0.2 })
+    drawDoodle(ctx, 'camellia', 940, 70, 90, { rotate: 0.3 })
     titleY = 140
-    routeBox = { x: 100, y: 660, w: 880, h: 620 }
+    routeBox = { x: 100, y: 700, w: 880, h: 580 }
     stamp = walk.points?.length > 1 || courseTrack(course.id) ? [W - 230, 1290, 125] : [W / 2 + 60, 960, 210]
   }
 
   ctx.textBaseline = 'alphabetic'
   ctx.textAlign = 'left'
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '-3px'
   ctx.fillStyle = MUTED
-  ctx.font = `600 38px ${FONT}`
+  ctx.font = `700 46px ${HAND}`
   ctx.fillText('제주올레', 80, titleY + 40)
   ctx.fillStyle = INK
-  ctx.font = `700 ${photoBlob ? 180 : 230}px ${SERIF}`
+  ctx.font = `700 ${photoBlob ? 200 : 260}px ${HAND}`
   const numY = titleY + (photoBlob ? 210 : 270)
   ctx.fillText(course.id, 70, numY)
   const numW = ctx.measureText(course.id).width
-  ctx.font = `700 ${photoBlob ? 64 : 80}px ${SERIF}`
-  ctx.fillText('코스', 70 + numW + 16, numY)
-  ctx.font = `500 50px ${FONT}`
+  ctx.font = `700 ${photoBlob ? 80 : 100}px ${HAND}`
+  ctx.fillText('코스', 70 + numW + 14, numY)
+  ctx.font = `700 64px ${HAND}`
   ctx.fillText(course.name, 80, numY + 90)
   ctx.fillStyle = MUTED
-  ctx.font = `500 38px ${FONT}`
+  ctx.font = `400 46px ${HAND}`
   ctx.fillText(date, 80, numY + 150)
+  if (!photoBlob) drawDoodle(ctx, 'wave', 80, numY + 185, 150)
 
   const ends = course.start && [[course.start.lat, course.start.lng], [course.end.lat, course.end.lng]]
   drawRoute(ctx, walk.points, courseTrack(course.id), routeBox, ends)
@@ -193,39 +201,41 @@ export async function makeShareCard({ walk, course, photoBlob, placeCount = 0 })
   if (placeCount > 0) sub.push(`맛집 ${placeCount}곳`)
 
   if (hero.length) {
-    ctx.fillStyle = INK
-    ctx.fillRect(80, 1460, W - 160, 3)
+    waveRule(70, 1440, W - 140)
     const colW = (W - 160) / 2
     hero.forEach(([label, parts], i) => {
       const x = 80 + colW * i
       ctx.fillStyle = MUTED
-      ctx.font = `500 34px ${FONT}`
-      ctx.fillText(label, x, 1530)
+      ctx.font = `700 40px ${HAND}`
+      ctx.fillText(label, x, 1525)
       // [값, 단위, 값, 단위...] 를 이어서 그림
       let cx = x
       for (let k = 0; k < parts.length; k++) {
         const isUnit = k % 2 === 1
         ctx.fillStyle = INK
-        ctx.font = isUnit ? `500 38px ${FONT}` : `700 104px ${SERIF}`
-        ctx.fillText(parts[k], cx, 1645)
-        cx += ctx.measureText(parts[k]).width + (isUnit ? 18 : 8)
+        ctx.font = isUnit ? `700 46px ${HAND}` : `700 124px ${HAND}`
+        ctx.fillText(parts[k], cx, 1640)
+        cx += ctx.measureText(parts[k]).width + (isUnit ? 18 : 6)
       }
     })
   }
   if (sub.length) {
     ctx.fillStyle = MUTED
-    ctx.font = `500 34px ${FONT}`
-    ctx.fillText(sub.join('   ·   '), 80, 1730)
+    ctx.font = `700 40px ${HAND}`
+    ctx.fillText(sub.join('   ·   '), 80, 1720)
   }
 
+  // 바닥: 현무암 돌담 + 돌하르방
+  for (let x = -30; x < W; x += 236) drawDoodle(ctx, 'stonewall', x, H - 58, 240)
+  drawDoodle(ctx, 'harubang', 890, H - 58 - 160, 120)
+
   ctx.fillStyle = MUTED
-  ctx.font = `500 32px ${FONT}`
-  ctx.fillText(`#제주올레 #올레${course.id}코스`, 80, 1830)
+  ctx.font = `700 40px ${HAND}`
+  ctx.fillText(`#제주올레 #올레${course.id}코스`, 80, 1800)
   if (courseTrack(course.id)) {
-    ctx.textAlign = 'right'
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '0px'
     ctx.font = `500 22px ${FONT}`
-    ctx.fillText('코스 경로 © OpenStreetMap', W - 80, 1830)
-    ctx.textAlign = 'left'
+    ctx.fillText('코스 경로 © OpenStreetMap', 80, 1842)
   }
 
   return new Promise((res) => c.toBlob(res, 'image/jpeg', 0.92))
