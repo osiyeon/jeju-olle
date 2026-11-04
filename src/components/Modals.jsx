@@ -3,6 +3,7 @@ import { COURSES } from '../lib/courses'
 import { loadPhoto, resizeImage } from '../lib/store'
 import { makeShareCard, shareOrDownload } from '../lib/shareCard'
 import { todayISO } from '../lib/geo'
+import { parseShared, readClipboard, searchLinks } from '../lib/mapLink'
 
 export function Sheet({ title, onClose, children }) {
   return (
@@ -48,6 +49,24 @@ export function PlaceForm({ pos, courseId, onSave, onClose }) {
   const [preview, setPreview] = useState(null)
   const [cid, setCid] = useState(courseId || '')
   const [busy, setBusy] = useState(false)
+  const [link, setLink] = useState('')
+  const [address, setAddress] = useState('')
+  const [linkMsg, setLinkMsg] = useState('')
+
+  // 지도 앱에서 복사한 글 → 링크, (이름이 비어 있으면) 이름, 주소
+  const applyShared = (text) => {
+    const r = parseShared(text)
+    if (!r.url) return setLinkMsg('복사한 내용에 링크가 없어요. 지도 앱에서 공유 → 복사를 눌러 주세요.')
+    setLink(r.url)
+    if (!name.trim() && r.name) setName(r.name)
+    if (r.address) setAddress(r.address)
+    setLinkMsg('')
+  }
+  const paste = async () => {
+    const t = await readClipboard()
+    if (t == null) return setLinkMsg('붙여넣기가 막혀 있어요. 입력칸을 길게 눌러 붙여넣어 주세요.')
+    applyShared(t)
+  }
 
   const pick = async (e) => {
     const f = e.target.files?.[0]
@@ -61,6 +80,29 @@ export function PlaceForm({ pos, courseId, onSave, onClose }) {
     <Sheet title="맛집 저장" onClose={onClose}>
       {!pos && <p className="warn">위치를 아직 못 잡았어요. 지도 핀 없이 저장돼요.</p>}
       <label>이름<input value={name} onChange={(e) => setName(e.target.value)} placeholder="예) 함덕 고기국수" autoFocus /></label>
+      <label>지도 링크
+        <div className="link-input">
+          <input
+            value={link}
+            onChange={(e) => setLink(e.target.value)}
+            onPaste={(e) => {
+              e.preventDefault()
+              applyShared(e.clipboardData.getData('text'))
+            }}
+            placeholder="지도 앱에서 공유 → 복사"
+            inputMode="url"
+          />
+          <button type="button" className="btn" onClick={paste}>붙여넣기</button>
+        </div>
+      </label>
+      {address && <p className="hint">주소: {address}</p>}
+      {linkMsg && <p className="hint">{linkMsg}</p>}
+      <p className="hint find-links">
+        가게 찾기:{' '}
+        {searchLinks(name).map(([l, u]) => (
+          <a key={l} href={u} target="_blank" rel="noreferrer">{l}</a>
+        ))}
+      </p>
       <label>별점<Stars value={rating} onChange={setRating} /></label>
       <label>메모<textarea value={memo} onChange={(e) => setMemo(e.target.value)} rows={3} placeholder="메뉴, 가격, 한줄평" /></label>
       <label>코스
@@ -79,7 +121,7 @@ export function PlaceForm({ pos, courseId, onSave, onClose }) {
         disabled={!name.trim() || busy}
         onClick={async () => {
           setBusy(true)
-          await onSave({ name: name.trim(), memo, rating, courseId: cid, lat: pos?.lat, lng: pos?.lng }, photo)
+          await onSave({ name: name.trim(), memo, rating, courseId: cid, lat: pos?.lat, lng: pos?.lng, link: link.trim(), address }, photo)
         }}
       >
         저장

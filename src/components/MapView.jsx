@@ -3,6 +3,7 @@ import L from 'leaflet'
 import { courseTrack } from '../lib/courses'
 import { doodleSvg } from '../lib/doodles'
 import { segments } from '../lib/geo'
+import { mapSource } from '../lib/mapLink'
 
 const JEJU = [33.38, 126.55]
 
@@ -63,7 +64,10 @@ export default function MapView({ current, points = [], places = [], course, fol
     g.clearLayers()
     places.forEach((p) => {
       L.marker([p.lat, p.lng], { icon: dot })
-        .bindPopup(`<b>${escapeHtml(p.name)}</b>${p.rating ? ' ' + '★'.repeat(p.rating) : ''}<br>${escapeHtml(p.memo || '')}`)
+        .bindPopup(
+          `<b>${escapeHtml(p.name)}</b>${p.rating ? ' ' + '★'.repeat(p.rating) : ''}<br>${escapeHtml(p.memo || '')}` +
+            (p.link ? `<br><a href="${escapeHtml(p.link)}" target="_blank" rel="noreferrer">${mapSource(p.link)}에서 보기</a>` : ''),
+        )
         .addTo(g)
     })
   }, [places])

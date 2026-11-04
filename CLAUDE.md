@@ -20,7 +20,8 @@
 - `src/components/Modals.jsx` — 바텀시트: 맛집 저장, 공유 카드, 코스 기록
 - `src/lib/courses.js` — 코스 27개 + 공식 거리(km). 19·20코스만 시작/종점 좌표(OSM 올레 시작점 표지 기준)
 - `src/lib/courseTracks.json` — 코스 경로(OSM relation을 단순화). 1·2·4·6·16·18·19·20코스만. 3·5·7은 OSM 데이터가 공식 거리와 크게 달라 뺐음
-- `src/lib/geo.js` — haversine, 포맷 함수
+- `src/lib/geo.js` — haversine, 포맷 함수, `walkMs`(쉬는 시간 뺀 걸은 시간), `segments`
+- `src/lib/mapLink.js` — 네이버 지도/카카오맵 "공유 → 복사" 글에서 링크·이름·주소 추출. 맛집 `link`, `address` 필드
 - `src/lib/store.js` — IndexedDB, 사진 리사이즈, 백업/복원
 - `src/lib/shareCard.js` — 1080×1920 공유 카드 Canvas 렌더 + Web Share
 - `src/lib/doodles.js` — 손그림 낙서(귤, 돌하르방, 돌담, 오름, 동백, 파도, 그릇) path 데이터. 화면 SVG(`components/Doodle.jsx`)와 공유 카드 Canvas가 같이 씀

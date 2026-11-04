@@ -185,3 +185,12 @@ label .stars button { font-size: 30px; padding: 0 3px; }
 .leaflet-container a.leaflet-popup-close-button { top: 5px; right: 4px; width: 22px; height: 22px; font: 400 20px/22px var(--hand); color: var(--muted); }
 .leaflet-container { font-family: inherit; }
 .pop-label { display: block; font-size: 15px; color: var(--muted); }
+
+/* 맛집 지도 링크 */
+.link-input { display: flex; gap: 8px; margin-top: 6px; align-items: stretch; }
+.link-input input { margin-top: 0 !important; flex: 1; min-width: 0; }
+.sheet .link-input .btn { flex: none; padding: 6px 12px; font-size: 18px; box-shadow: 2px 2px 0 var(--ink); }
+.find-links a { color: var(--sea); margin-left: 8px; text-decoration: underline; text-decoration-style: wavy; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.place-list small { display: block; }
+.links .add-link { color: var(--sea); margin-left: 0; font-weight: 600; }
+.leaflet-popup-content a { color: var(--sea); font-size: 17px; }
