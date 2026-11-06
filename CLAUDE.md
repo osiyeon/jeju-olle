@@ -27,7 +27,8 @@
 - `src/lib/doodles.js` — 손그림 낙서(귤, 돌하르방, 돌담, 오름, 동백, 파도, 그릇) path 데이터. 화면 SVG(`components/Doodle.jsx`)와 공유 카드 Canvas가 같이 씀
 
 ## GPS 규칙
-오차 50m 초과 버림, 8m 미만 이동 무시, 초속 12m 초과(순간이동) 무시. 진행 중 기록은 점마다 `active` 키에 저장 → 새로고침해도 이어짐.
+오차 50m 초과 버림, 8m 미만 이동 무시, 초속 12m 초과(순간이동) 무시. 진행 중 기록은 점마다 `lib/walkState.js`의 `saveActive`로 IndexedDB(`active`) + localStorage(`olle-active`) + 주소창 `?w=id~코스~시작시각~쉰ms~쉼시작~위도~경도` 세 군데에 저장. iOS Safari가 화면 꺼진 사이 탭을 다시 불러오며 저장소를 비워도 URL로 이어서 계산(11/5 19코스에서 걷기가 통째로 사라졌던 문제).
+화면 꺼짐 등으로 위치가 45초 넘게 안 들어오다 100m 넘게 떨어진 곳에서 들어오면, 그 사이를 코스 경로를 따라 채움(`fillAlongCourse`, 점 플래그 2, 거리는 공식 km/OSM 길이 비율로 보정). 코스 밖이면 직선. 화면이 다시 보이면 watchPosition 재시작(`gpsKey`).
 일시정지: `active.pausedAt`/`pausedMs`/`resumedAt`. 쉬는 동안 점을 안 받고, 다시 걸을 때 첫 점은 `[lat,lng,t,1]`(새 구간)로 넣어 쉬는 사이 이동 거리를 빼고 선도 안 잇는다. 걸은 시간은 `walkMs()`(쉬는 시간 제외), 경로 구간은 `segments()` (`lib/geo.js`). 쉬는 동안엔 Wake Lock 해제.
 
 ## 개발 · 테스트

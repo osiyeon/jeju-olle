@@ -53,8 +53,44 @@ export function walkMs(w, now = Date.now()) {
 export function segments(points = []) {
   const out = []
   for (const p of points) {
-    if (!out.length || p[3]) out.push([])
+    if (!out.length || p[3] === 1) out.push([]) // 2는 화면 꺼진 구간을 코스로 채운 점(선은 이어짐)
     out[out.length - 1].push([p[0], p[1]])
   }
   return out
+}
+
+// ---- 화면이 꺼져 있던 구간을 코스 경로를 따라 채우기 ----
+const M_PER_DEG = 111320
+function project(seg, cum, pt) {
+  const k = Math.cos((pt[0] * Math.PI) / 180)
+  const xy = (q) => [q[1] * M_PER_DEG * k, q[0] * M_PER_DEG]
+  const P = xy(pt)
+  let best = null
+  for (let i = 0; i < seg.length - 1; i++) {
+    const A = xy(seg[i]), B = xy(seg[i + 1])
+    const dx = B[0] - A[0], dy = B[1] - A[1]
+    const L2 = dx * dx + dy * dy || 1e-9
+    const t = Math.max(0, Math.min(1, ((P[0] - A[0]) * dx + (P[1] - A[1]) * dy) / L2))
+    const d = Math.hypot(A[0] + t * dx - P[0], A[1] + t * dy - P[1])
+    if (!best || d < best.d) best = { i, t, d, along: cum[i] + t * (cum[i + 1] - cum[i]) }
+  }
+  return best
+}
+
+// segs: 코스 경로 구간들, a/b: [lat, lng]. 둘 다 코스에서 maxOff(m) 안이면
+// { pts: 사이의 코스 꼭짓점들, dist: 코스를 따라간 거리(m) }, 아니면 null
+export function fillAlongCourse(segs, a, b, { maxOff = 400, scale = 1 } = {}) {
+  if (!segs) return null
+  for (const seg of segs) {
+    if (seg.length < 2) continue
+    const cum = [0]
+    for (let i = 1; i < seg.length; i++) cum.push(cum[i - 1] + haversine(seg[i - 1], seg[i]))
+    const pa = project(seg, cum, a), pb = project(seg, cum, b)
+    if (pa.d > maxOff || pb.d > maxOff) continue
+    const pts = []
+    if (pa.along <= pb.along) for (let i = pa.i + 1; i <= pb.i; i++) pts.push(seg[i])
+    else for (let i = pa.i; i > pb.i; i--) pts.push(seg[i])
+    return { pts, dist: Math.abs(pb.along - pa.along) * scale + pa.d + pb.d }
+  }
+  return null
 }

@@ -3,14 +3,17 @@ import MapView from './components/MapView'
 import LocationPicker from './components/LocationPicker'
 import { Doodle, TabIcon } from './components/Doodle'
 import { CourseSheet, PhotoThumb, PlaceForm, ShareSheet, Sheet, Stars } from './components/Modals'
-import { COURSES, courseById } from './lib/courses'
-import { fmtDate, fmtDuration, fmtDurationKo, fmtKm, fmtPace, haversine, walkMs } from './lib/geo'
+import { COURSES, courseById, courseTrack } from './lib/courses'
+import { fillAlongCourse, fmtDate, fmtDuration, fmtDurationKo, fmtKm, fmtPace, haversine, walkMs } from './lib/geo'
+import { askPersist, loadActive, saveActive } from './lib/walkState'
 import { delPhoto, exportAll, importAll, load, save, savePhoto, uid } from './lib/store'
 import { mapSource, parseShared, readClipboard, safeUrl } from './lib/mapLink'
 
 const SIM = new URLSearchParams(location.search).has('sim') // ?sim → 가짜 GPS로 테스트
 const MAX_ACC = 50 // m, 이보다 부정확한 위치는 경로에 안 넣음
 const MAX_SPEED = 12 // m/s, 튀는 점 제거
+const GAP_MS = 45000 // 이보다 오래 위치가 안 들어오다가(화면 꺼짐 등) 다시 들어오면
+const GAP_M = 100 //   이만큼 이상 떨어져 있을 때 그 사이를 코스 경로로 채운다
 
 export default function App() {
   const [tab, setTab] = useState('walk')
@@ -27,20 +30,25 @@ export default function App() {
   const [now, setNow] = useState(() => Date.now())
   const [sheet, setSheet] = useState(null) // { type, ... }
   const [placeFocus, setPlaceFocus] = useState(null) // 맛집 탭 지도에서 보여줄 맛집 { id }
+  const [note, setNote] = useState('') // 걷기 패널 안내 (빈 구간 채움, 기록 복구 등)
+  const [gpsKey, setGpsKey] = useState(0) // 바뀌면 GPS 추적을 새로 시작
+  const [wakeOk, setWakeOk] = useState(null) // 화면 꺼짐 방지 성공 여부
 
   const course = courseById(courseId)
 
   // ---- 저장소 로드 ----
   useEffect(() => {
-    Promise.all([load('walks', []), load('places', []), load('done', {}), load('active', null)]).then(([w, p, d, a]) => {
+    Promise.all([load('walks', []), load('places', []), load('done', {}), loadActive()]).then(([w, p, d, a]) => {
       setWalks(w)
       setPlaces(p)
       setDone(d)
-      if (a) {
+      if (a && !w.some((x) => x.id === a.id)) {
         activeRef.current = a
         setActiveState(a)
         setCourseId(a.courseId)
-      }
+        saveActive(a)
+        if (a.restoredFrom === 'url') setNote('저장된 기록이 지워져 있어서, 시작 시각과 시작점으로 이어서 계산해요.')
+      } else if (a) saveActive(null)
       setReady(true)
     })
   }, [])
@@ -50,7 +58,7 @@ export default function App() {
   const setActive = (a) => {
     activeRef.current = a
     setActiveState(a)
-    save('active', a)
+    saveActive(a)
   }
   const updateWalks = (w) => (setWalks(w), save('walks', w))
   const updatePlaces = (p) => (setPlaces(p), save('places', p))
@@ -68,10 +76,27 @@ export default function App() {
       const next = { ...a, points: [...a.points, [p.lat, p.lng, p.t, 1]] }
       activeRef.current = next
       setActiveState(next)
-      save('active', next)
+      saveActive(next)
       return
     }
     const pt = [p.lat, p.lng, p.t]
+    // 화면이 꺼져 있다가(위치가 한동안 안 들어오다가) 돌아온 경우: 그 사이를 코스 경로로 채움
+    if (last && p.t - last[2] > GAP_MS && haversine(last, pt) > GAP_M) {
+      const c = courseById(a.courseId)
+      const segs = courseTrack(a.courseId)
+      const trackLen = segs ? Math.max(...segs.map((sg) => sg.reduce((m, q, i) => (i ? m + haversine(sg[i - 1], q) : 0), 0))) : 0
+      const scale = c?.km && trackLen ? Math.min(1, (c.km * 1000) / trackLen) : 1
+      const fill = fillAlongCourse(segs, last, pt, { scale })
+      const dt = p.t - last[2]
+      const dist = fill ? fill.dist : haversine(last, pt)
+      const mids = fill ? fill.pts.map((q, i) => [q[0], q[1], Math.round(last[2] + (dt * (i + 1)) / (fill.pts.length + 1)), 2]) : []
+      const next = { ...a, points: [...a.points, ...mids, pt], distance: a.distance + dist, gapMs: (a.gapMs || 0) + dt, gapDist: (a.gapDist || 0) + dist }
+      activeRef.current = next
+      setActiveState(next)
+      saveActive(next)
+      setNote(`화면이 꺼져 있던 ${fmtDurationKo(dt)} 동안 ${fmtKm(dist)}km를 ${fill ? '코스 경로를 따라' : '직선거리로'} 계산했어요.`)
+      return
+    }
     let add = 0
     if (last) {
       const d = haversine(last, pt)
@@ -83,7 +108,7 @@ export default function App() {
     const next = { ...a, points: [...a.points, pt], distance: a.distance + add }
     activeRef.current = next
     setActiveState(next)
-    save('active', next)
+    saveActive(next)
   }, [])
 
   useEffect(() => {
@@ -111,14 +136,36 @@ export default function App() {
       { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 },
     )
     return () => navigator.geolocation.clearWatch(id)
-  }, [onPosition])
+  }, [onPosition, gpsKey])
+
+  // 화면이 다시 켜지면 GPS 추적을 새로 시작 (iOS는 꺼진 동안 끊고, 돌아와도 안 살아나는 경우가 있음)
+  useEffect(() => {
+    const wake = () => document.visibilityState === 'visible' && setGpsKey((k) => k + 1)
+    document.addEventListener('visibilitychange', wake)
+    window.addEventListener('pageshow', wake)
+    return () => {
+      document.removeEventListener('visibilitychange', wake)
+      window.removeEventListener('pageshow', wake)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!note) return
+    const id = setTimeout(() => setNote(''), 20000)
+    return () => clearTimeout(id)
+  }, [note])
 
   // ---- 화면 꺼짐 방지 (걷는 중에만, 쉬는 동안엔 풀어서 배터리 아낌) ----
   const paused = !!active?.pausedAt
   useEffect(() => {
-    if (!active || paused || !('wakeLock' in navigator)) return
+    if (!active || paused) return
+    if (!('wakeLock' in navigator)) return setWakeOk(false)
     let lock
-    const req = () => navigator.wakeLock.request('screen').then((l) => (lock = l)).catch(() => {})
+    const req = () =>
+      navigator.wakeLock
+        .request('screen')
+        .then((l) => ((lock = l), setWakeOk(true)))
+        .catch(() => setWakeOk(false))
     req()
     const onVis = () => document.visibilityState === 'visible' && req()
     document.addEventListener('visibilitychange', onVis)
@@ -137,8 +184,10 @@ export default function App() {
   // ---- 걷기 ----
   const startWalk = () => {
     const a = { id: uid(), courseId, startedAt: Date.now(), points: [], distance: 0 }
+    // 시작점: 지금 위치. 위치를 아직 못 잡았으면 코스 출발점(있으면)으로
     if (pos && pos.accuracy <= MAX_ACC) a.points.push([pos.lat, pos.lng, Date.now()])
     setActive(a)
+    askPersist()
     setFollow(true)
   }
 
@@ -241,6 +290,10 @@ export default function App() {
                   <div><span>시간</span><b>{fmtDuration(elapsed)}</b></div>
                   <div><span>페이스</span><b>{fmtPace(elapsed, active.distance)}</b></div>
                 </div>
+                {note && <p className="note">{note}</p>}
+                {!note && !paused && wakeOk === false && (
+                  <p className="note">화면이 저절로 꺼질 수 있어요. 꺼져도 다시 켜면 그동안 거리를 코스를 따라 계산해요.</p>
+                )}
                 {paused ? (
                   <p className="remain">쉬는 중 ({fmtDuration(now - active.pausedAt)}) · 시간과 거리는 멈춰 있어요.</p>
                 ) : (
