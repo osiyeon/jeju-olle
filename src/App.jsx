@@ -9,6 +9,8 @@ import { askPersist, loadActive, saveActive } from './lib/walkState'
 import { delPhoto, exportAll, importAll, load, save, savePhoto, uid } from './lib/store'
 import { mapSource, parseShared, readClipboard, safeUrl } from './lib/mapLink'
 
+const TOTAL_KM = COURSES.reduce((sum, c) => sum + (c.km || 0), 0)
+const fmtKmShort = (km) => (Math.round(km * 10) / 10).toString()
 const SIM = new URLSearchParams(location.search).has('sim') // ?sim → 가짜 GPS로 테스트
 const MAX_ACC = 50 // m, 이보다 부정확한 위치는 경로에 안 넣음
 const MAX_SPEED = 12 // m/s, 튀는 점 제거
@@ -214,6 +216,8 @@ export default function App() {
   const elapsed = active ? walkMs(active, now) : 0
   const coursePlaces = useMemo(() => places.filter((p) => p.lat != null), [places])
   const doneCount = Object.keys(done).length
+  const doneKm = COURSES.reduce((sum, c) => sum + (done[c.id] ? c.km || 0 : 0), 0)
+  const donePct = Math.round((doneCount / COURSES.length) * 100)
 
   // ---- 맛집 ----
   const savePlace = async (data, photo) => {
@@ -337,9 +341,18 @@ export default function App() {
             <Doodle name="oreum" size={110} />
           </div>
           <div className="progress">
-            <p><b>{doneCount}</b> / {COURSES.length}코스</p>
+            <div className="progress-head">
+              <p><b>{doneCount}</b> / {COURSES.length}코스</p>
+              <p className="pct"><b>{donePct}</b>%<small>완주</small></p>
+            </div>
+            <p className="km">거리로 보면 {fmtKmShort(doneKm)} / {fmtKmShort(TOTAL_KM)}km</p>
             <div className="gyul-row">
-              {COURSES.map((c) => <Doodle key={c.id} name={done[c.id] ? 'gyul' : 'ring'} size={done[c.id] ? 28 : 22} />)}
+              {COURSES.map((c) => (
+                <button key={c.id} className={done[c.id] ? 'gyul-cell on' : 'gyul-cell'} onClick={() => setSheet({ type: 'course', id: c.id })} aria-label={`${c.id}코스`}>
+                  <Doodle name={done[c.id] ? 'gyul' : 'ring'} size={done[c.id] ? 30 : 24} />
+                  <span>{c.id}</span>
+                </button>
+              ))}
             </div>
           </div>
           <ul className="course-list">
