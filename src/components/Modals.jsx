@@ -74,11 +74,12 @@ export function PlaceForm({ pos, courseId, onSave, onClose }) {
     // 카카오 키가 있으면 주소(없으면 가게 이름)로 위치를 찾아 넣음
     if (kakaoReady() && (r.address || r.name || name.trim())) {
       setLocating(true)
-      locatePlace({ address: r.address, name: r.name || name.trim() }, pos).then((found) => {
+      locatePlace({ address: r.address, name: r.name || name.trim() }).then((found) => {
         setLocating(false)
         if (!found) return
         setPicked({ lat: found.lat, lng: found.lng })
-        setPickedFrom('kakao')
+        setPickedFrom(found.via === 'address' ? 'address' : `name:${found.name}`)
+        if (found.via === 'name' && found.address && !r.address) setAddress(found.address)
       })
     }
   }
@@ -113,11 +114,21 @@ export function PlaceForm({ pos, courseId, onSave, onClose }) {
           {locating
             ? '주소로 가게 위치 찾는 중…'
             : picked
-              ? pickedFrom === 'kakao' ? '주소로 찾은 가게 위치' : '지도에서 고른 위치'
+              ? pickedFrom === 'address'
+                ? '주소로 찾은 가게 위치'
+                : pickedFrom.startsWith('name:')
+                  ? `이름으로 찾은 곳: ${pickedFrom.slice(5)}`
+                  : '지도에서 고른 위치'
               : needPick
                 ? '가게 위치를 아직 안 골랐어요'
                 : pos ? `지금 위치 (±${Math.round(pos.accuracy)}m)` : '위치를 아직 못 잡았어요'}
-          <small>{needPick ? '지금 위치로 저장하면 핀이 내가 있는 곳에 찍혀요' : '가게가 여기 아니면 직접 골라 주세요'}</small>
+          <small>
+            {needPick
+              ? '지금 위치로 저장하면 핀이 내가 있는 곳에 찍혀요'
+              : pickedFrom.startsWith('name:')
+                ? '다른 가게면 지도에서 직접 골라 주세요'
+                : '가게가 여기 아니면 직접 골라 주세요'}
+          </small>
         </span>
         <button type="button" className="btn" onClick={() => setPicking(true)}>지도에서 고르기</button>
       </div>

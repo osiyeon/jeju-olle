@@ -233,7 +233,7 @@ export default function App() {
     const r = parseShared(t || '')
     if (!safeUrl(r.url)) return alert('복사한 내용에 링크가 없어요. 지도 앱에서 공유 → 복사를 먼저 눌러 주세요.')
     const address = p.address || r.address
-    const found = await locatePlace({ address, name: p.name }, p.lat != null ? p : pos) // 카카오 키가 없으면 null
+    const found = await locatePlace({ address, name: p.name }) // 카카오 키가 없으면 null
     updatePlaces(places.map((x) => (x.id === p.id ? { ...x, link: safeUrl(r.url), address, ...(found ? { lat: found.lat, lng: found.lng } : {}) } : x)))
     if (found) setPlaceFocus({ id: p.id })
     else alert('링크를 넣었어요. 지도 핀이 가게와 다르면 \'위치 고치기\'로 맞춰 주세요.')
