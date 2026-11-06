@@ -28,6 +28,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+        env:
+          # 저장소 Settings > Secrets and variables > Actions > Variables 에 등록
+          VITE_KAKAO_JS_KEY: ${{ vars.VITE_KAKAO_JS_KEY }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
