@@ -29,6 +29,7 @@ export default function MapView({ current, points = [], places = [], course, fol
 
   useEffect(() => {
     const m = L.map(el.current, { zoomControl: false, attributionControl: true }).setView(JEJU, 10)
+    firstFix.current = false // 지도를 새로 만들면 첫 위치 확대도 다시
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap',
@@ -111,7 +112,7 @@ export default function MapView({ current, points = [], places = [], course, fol
       me.addTo(map.current)
     }
     if (!fitTrack && !fitPlaces && (follow || !firstFix.current)) {
-      map.current.setView(ll, firstFix.current ? map.current.getZoom() : 16, { animate: true })
+      map.current.setView(ll, firstFix.current ? map.current.getZoom() : 16, { animate: firstFix.current }) // 첫 위치는 바로 확대
       firstFix.current = true
     }
   }, [current, follow, fitTrack, fitPlaces])
