@@ -4,9 +4,9 @@ import LocationPicker from './components/LocationPicker'
 import { Doodle, TabIcon } from './components/Doodle'
 import { CourseSheet, PhotoThumb, PlaceForm, ShareSheet, Sheet, Stars } from './components/Modals'
 import { COURSES, courseById, courseTrack } from './lib/courses'
-import { fillAlongCourse, fmtDate, fmtDuration, fmtDurationKo, fmtKm, fmtPace, haversine, walkMs } from './lib/geo'
-import { askPersist, loadActive, saveActive } from './lib/walkState'
-import { delPhoto, exportAll, importAll, load, save, savePhoto, uid } from './lib/store'
+import { fillAlongCourse, fmtDate, fmtDuration, fmtDurationKo, fmtKm, fmtPace, haversine, localISO, walkMs } from './lib/geo'
+import { askPersist, declineUrlWalk, loadActive, saveActive } from './lib/walkState'
+import { delPhoto, exportAll, importAll, load, lsGet, lsSet, save, savePhoto, uid } from './lib/store'
 import { mapSource, parseShared, readClipboard, safeUrl } from './lib/mapLink'
 import { locatePlace } from './lib/kakao'
 
@@ -24,7 +24,7 @@ export default function App() {
   const [walks, setWalks] = useState([])
   const [places, setPlaces] = useState([])
   const [done, setDone] = useState({}) // { courseId: { date, memo, walkId } }
-  const [courseId, setCourseId] = useState(localStorage.getItem('courseId') || '19')
+  const [courseId, setCourseId] = useState(() => (courseById(lsGet('courseId')) ? lsGet('courseId') : '19'))
   const [active, setActiveState] = useState(null)
   const activeRef = useRef(null)
   const [pos, setPos] = useState(null)
@@ -36,15 +36,29 @@ export default function App() {
   const [note, setNote] = useState('') // 걷기 패널 안내 (빈 구간 채움, 기록 복구 등)
   const [gpsKey, setGpsKey] = useState(0) // 바뀌면 GPS 추적을 새로 시작
   const [wakeOk, setWakeOk] = useState(null) // 화면 꺼짐 방지 성공 여부
+  const [storageErr, setStorageErr] = useState(false) // 브라우저가 저장을 막음
 
   const course = courseById(courseId)
 
-  // ---- 저장소 로드 ----
+  // ---- 저장소 로드 (한 번만: 확인 창이 두 번 뜨지 않게) ----
+  const inited = useRef(false)
   useEffect(() => {
-    Promise.all([load('walks', []), load('places', []), load('done', {}), loadActive()]).then(([w, p, d, a]) => {
+    if (inited.current) return
+    inited.current = true
+    Promise.all([load('walks', []), load('places', []), load('done', {}), loadActive()])
+      .then(([w0, p, d, a0]) => {
+      // 깨진 항목이 있어도 화면이 멈추지 않게 객체만 남김
+      const objs = (x) => (Array.isArray(x) ? x.filter((v) => v && typeof v === 'object' && v.id) : [])
+      const w = objs(w0)
+      let a = a0
       setWalks(w)
-      setPlaces(p)
-      setDone(d)
+      setPlaces(objs(p))
+      setDone(d && typeof d === 'object' ? d : {})
+      // 주소창에만 남은 걷기(저장소가 비었을 때)는 남이 보낸 링크일 수도 있으니 먼저 묻는다
+      if (a?.restoredFrom === 'url' && !confirm(`진행 중이던 ${a.courseId}코스 걷기를 이어갈까요?\n(${fmtDurationKo(Date.now() - a.startedAt)} 전에 시작)`)) {
+        declineUrlWalk(a.id)
+        a = null
+      }
       if (a && !w.some((x) => x.id === a.id)) {
         activeRef.current = a
         setActiveState(a)
@@ -53,10 +67,16 @@ export default function App() {
         if (a.restoredFrom === 'url') setNote('저장된 기록이 지워져 있어서, 시작 시각과 시작점으로 이어서 계산해요.')
       } else if (a) saveActive(null)
       setReady(true)
-    })
+      })
+      .catch((e) => {
+        // IndexedDB를 못 쓰는 브라우저 설정: 앱은 열되 저장이 안 된다고 알림
+        console.error(e)
+        setStorageErr(true)
+        setReady(true)
+      })
   }, [])
 
-  useEffect(() => localStorage.setItem('courseId', courseId), [courseId])
+  useEffect(() => lsSet('courseId', courseId), [courseId])
 
   const setActive = (a) => {
     activeRef.current = a
@@ -116,7 +136,7 @@ export default function App() {
 
   useEffect(() => {
     if (SIM) {
-      const c = courseById(localStorage.getItem('courseId') || '19')
+      const c = courseById(lsGet('courseId') || '19')
       let i = 0
       const s = c?.start || { lat: 33.5384, lng: 126.6344 }
       const e = c?.end || { lat: 33.5592, lng: 126.7433 }
@@ -207,7 +227,7 @@ export default function App() {
     const pausedMs = (a.pausedMs || 0) + (a.pausedAt ? t - a.pausedAt : 0)
     const w = { ...a, endedAt: t, pausedAt: null, pausedMs, completed }
     updateWalks([w, ...walks])
-    if (completed) updateDone({ ...done, [a.courseId]: { ...done[a.courseId], date: new Date(a.startedAt).toISOString().slice(0, 10), walkId: w.id } })
+    if (completed) updateDone({ ...done, [a.courseId]: { ...done[a.courseId], date: localISO(a.startedAt), walkId: w.id } })
     setActive(null)
     setSheet(completed ? { type: 'share', walk: w } : null)
     if (!completed) setTab('history')
@@ -279,6 +299,7 @@ export default function App() {
             </button>
             {gpsErr && <div className="gps-err">{gpsErr}</div>}
             {SIM && <div className="gps-err">시뮬레이션 모드</div>}
+            {storageErr && <div className="gps-err">이 브라우저 설정에서는 기록이 저장되지 않아요. 개인정보 보호 모드나 쿠키 차단을 꺼 주세요.</div>}
           </div>
 
           <div className="walk-panel">
@@ -579,7 +600,7 @@ function Backup() {
           onClick={async () => {
             const data = await exportAll()
             const blob = new Blob([JSON.stringify(data)], { type: 'application/json' })
-            const file = new File([blob], `olle-backup-${new Date().toISOString().slice(0, 10)}.json`, { type: 'application/json' })
+            const file = new File([blob], `olle-backup-${localISO()}.json`, { type: 'application/json' })
             if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file] }).catch(() => {})
             else {
               const a = document.createElement('a')
@@ -599,10 +620,16 @@ function Backup() {
             hidden
             onChange={async (e) => {
               const f = e.target.files?.[0]
+              e.target.value = '' // 같은 파일을 다시 골라도 동작하게
               if (!f || !confirm('지금 기록을 백업 파일 내용으로 덮어쓸까요?')) return
-              await importAll(JSON.parse(await f.text()))
-              setMsg('복원했어요. 다시 불러올게요.')
-              setTimeout(() => location.reload(), 800)
+              try {
+                const n = await importAll(JSON.parse(await f.text()))
+                setMsg(`걷기 ${n.walks}개, 맛집 ${n.places}곳, 완주 ${n.done}코스를 복원했어요. 다시 불러올게요.`)
+                setTimeout(() => location.reload(), 1500)
+              } catch (err) {
+                console.error(err)
+                setMsg('올레 기록장 백업 파일이 아니거나 내용이 손상됐어요. 지금 기록은 그대로예요.')
+              }
             }}
           />
         </label>
