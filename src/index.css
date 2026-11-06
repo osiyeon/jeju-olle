@@ -109,7 +109,9 @@ h2, h3, h4, .btn, .tabs button, .tag, .splash, .course-chip b, .course-list li b
 .progress .pct { margin: 0; color: var(--ink); }
 .progress .pct b { font-size: 40px; color: var(--tang); }
 .progress .pct small { font-family: var(--hand); font-size: 18px; margin-left: 4px; color: var(--muted); }
-.progress p.km { margin: -4px 0 10px; font-family: inherit; font-size: 13px; }
+.progress .count { white-space: nowrap; min-width: 0; }
+.progress .count .km { font-family: -apple-system, sans-serif; font-size: 12px; margin-left: 6px; letter-spacing: 0; }
+.progress-head { margin-bottom: 6px; }
 .gyul-cell { border: 0; background: none; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 0; height: 46px; justify-content: flex-end; }
 .gyul-cell span { font-family: var(--hand); font-size: 14px; font-weight: 700; line-height: 1; color: #b5ab9a; letter-spacing: -.04em; }
 .gyul-cell.on span { color: var(--ink); }
@@ -222,3 +224,4 @@ label .stars button { font-size: 30px; padding: 0 3px; }
 .links { flex-wrap: wrap; row-gap: 6px; }
 .picker .row .btn.primary { flex: 1.7; }
 .note { margin: 8px 0 0; padding: 6px 10px; background: var(--tang-soft); border-radius: var(--wobble); font-size: 13px; line-height: 1.45; }
+.loc-row.need { border-color: var(--tang); background: var(--tang-soft); }

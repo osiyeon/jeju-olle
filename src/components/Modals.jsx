@@ -5,6 +5,7 @@ import { makeShareCard, shareOrDownload } from '../lib/shareCard'
 import { todayISO } from '../lib/geo'
 import { parseShared, readClipboard, safeUrl, searchLinks } from '../lib/mapLink'
 import LocationPicker from './LocationPicker'
+import { kakaoReady, locatePlace } from '../lib/kakao'
 
 export function Sheet({ title, onClose, children }) {
   return (
@@ -55,8 +56,12 @@ export function PlaceForm({ pos, courseId, onSave, onClose }) {
   const [linkMsg, setLinkMsg] = useState('')
   // 위치: 기본은 지금 GPS 위치. 지도에서 고르면 그걸 씀
   const [picked, setPicked] = useState(null)
+  const [pickedFrom, setPickedFrom] = useState('') // 'map' 지도에서 고름 | 'kakao' 주소로 찾음
   const [picking, setPicking] = useState(false)
+  const [locating, setLocating] = useState(false)
   const where = picked || (pos ? { lat: pos.lat, lng: pos.lng } : null)
+  // 지도 링크를 붙였는데 가게 위치는 안 정함 → 지금 위치로 저장하면 엉뚱한 곳에 핀이 찍힘
+  const needPick = !!link && !picked
 
   // 지도 앱에서 복사한 글 → 링크, (이름이 비어 있으면) 이름, 주소
   const applyShared = (text) => {
@@ -66,6 +71,16 @@ export function PlaceForm({ pos, courseId, onSave, onClose }) {
     if (!name.trim() && r.name) setName(r.name)
     if (r.address) setAddress(r.address)
     setLinkMsg('')
+    // 카카오 키가 있으면 주소(없으면 가게 이름)로 위치를 찾아 넣음
+    if (kakaoReady() && (r.address || r.name || name.trim())) {
+      setLocating(true)
+      locatePlace({ address: r.address, name: r.name || name.trim() }, pos).then((found) => {
+        setLocating(false)
+        if (!found) return
+        setPicked({ lat: found.lat, lng: found.lng })
+        setPickedFrom('kakao')
+      })
+    }
   }
   const paste = async () => {
     const t = await readClipboard()
@@ -87,15 +102,22 @@ export function PlaceForm({ pos, courseId, onSave, onClose }) {
         <LocationPicker
           initial={where}
           current={pos}
-          onPick={(l) => (setPicked(l), setPicking(false))}
+          hint={address}
+          onPick={(l) => (setPicked(l), setPickedFrom('map'), setPicking(false))}
           onCancel={() => setPicking(false)}
         />
       ) : (
       <>
-      <div className="loc-row">
+      <div className={needPick ? 'loc-row need' : 'loc-row'}>
         <span>
-          {picked ? '지도에서 고른 위치' : pos ? `지금 위치 (±${Math.round(pos.accuracy)}m)` : '위치를 아직 못 잡았어요'}
-          <small>가게가 여기 아니면 직접 골라 주세요</small>
+          {locating
+            ? '주소로 가게 위치 찾는 중…'
+            : picked
+              ? pickedFrom === 'kakao' ? '주소로 찾은 가게 위치' : '지도에서 고른 위치'
+              : needPick
+                ? '가게 위치를 아직 안 골랐어요'
+                : pos ? `지금 위치 (±${Math.round(pos.accuracy)}m)` : '위치를 아직 못 잡았어요'}
+          <small>{needPick ? '지금 위치로 저장하면 핀이 내가 있는 곳에 찍혀요' : '가게가 여기 아니면 직접 골라 주세요'}</small>
         </span>
         <button type="button" className="btn" onClick={() => setPicking(true)}>지도에서 고르기</button>
       </div>
@@ -140,6 +162,7 @@ export function PlaceForm({ pos, courseId, onSave, onClose }) {
         className="btn primary block"
         disabled={!name.trim() || busy}
         onClick={async () => {
+          if (needPick && !locating && confirm('가게 위치를 아직 안 골랐어요.\n지도에서 고를까요?\n(취소를 누르면 지금 내 위치로 저장돼요)')) return setPicking(true)
           setBusy(true)
           await onSave({ name: name.trim(), memo, rating, courseId: cid, lat: where?.lat, lng: where?.lng, link: safeUrl(link), address }, photo)
         }}

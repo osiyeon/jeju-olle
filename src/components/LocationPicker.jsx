@@ -3,7 +3,7 @@ import L from 'leaflet'
 import { Doodle } from './Doodle'
 
 // 지도를 움직여 가운데 귤 핀을 가게 위치에 맞추고 고르는 화면
-export default function LocationPicker({ initial, current, onPick, onCancel }) {
+export default function LocationPicker({ initial, current, hint, onPick, onCancel }) {
   const el = useRef(null)
   const map = useRef(null)
 
@@ -21,6 +21,7 @@ export default function LocationPicker({ initial, current, onPick, onCancel }) {
   return (
     <div className="picker">
       <p className="hint">지도를 움직여 귤 핀을 가게 위치에 맞춰 주세요.</p>
+      {hint && <p className="hint">주소: {hint}</p>}
       <div className="picker-map">
         <div ref={el} className="map" />
         <div className="picker-pin" aria-hidden="true">

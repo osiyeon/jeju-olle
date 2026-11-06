@@ -21,6 +21,7 @@
 - `src/lib/courses.js` — 코스 27개 + 공식 거리(km). 19·20코스만 시작/종점 좌표(OSM 올레 시작점 표지 기준)
 - `src/lib/courseTracks.json` — 코스 경로(OSM relation을 단순화). 1·2·4·6·16·18·19·20코스만. 3·5·7은 OSM 데이터가 공식 거리와 크게 달라 뺐음
 - `src/lib/geo.js` — haversine, 포맷 함수, `walkMs`(쉬는 시간 뺀 걸은 시간), `segments`
+- `src/lib/kakao.js` — 카카오 지도 JS SDK 주소·장소 검색으로 맛집 좌표 찾기. 키는 `VITE_KAKAO_JS_KEY`(빌드 시 주입, `.env.production`). 키가 없으면 건너뛰고 사용자가 지도에서 위치를 고름. 카카오 개발자 콘솔에 도메인(https://jeju-olle.norara.app, http://localhost:5173) 등록 필요
 - `src/lib/mapLink.js` — 네이버 지도/카카오맵 "공유 → 복사" 글에서 링크·이름·주소 추출. 맛집 `link`, `address` 필드
 - `src/lib/store.js` — IndexedDB, 사진 리사이즈, 백업/복원
 - `src/lib/shareCard.js` — 1080×1920 공유 카드 Canvas 렌더 + Web Share

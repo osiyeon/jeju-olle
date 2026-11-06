@@ -8,6 +8,7 @@ import { fillAlongCourse, fmtDate, fmtDuration, fmtDurationKo, fmtKm, fmtPace, h
 import { askPersist, loadActive, saveActive } from './lib/walkState'
 import { delPhoto, exportAll, importAll, load, save, savePhoto, uid } from './lib/store'
 import { mapSource, parseShared, readClipboard, safeUrl } from './lib/mapLink'
+import { locatePlace } from './lib/kakao'
 
 const TOTAL_KM = COURSES.reduce((sum, c) => sum + (c.km || 0), 0)
 const fmtKmShort = (km) => (Math.round(km * 10) / 10).toString()
@@ -231,7 +232,11 @@ export default function App() {
     const t = (await readClipboard()) ?? prompt('지도 앱에서 복사한 링크를 붙여넣어 주세요')
     const r = parseShared(t || '')
     if (!safeUrl(r.url)) return alert('복사한 내용에 링크가 없어요. 지도 앱에서 공유 → 복사를 먼저 눌러 주세요.')
-    updatePlaces(places.map((x) => (x.id === p.id ? { ...x, link: safeUrl(r.url), address: x.address || r.address } : x)))
+    const address = p.address || r.address
+    const found = await locatePlace({ address, name: p.name }, p.lat != null ? p : pos) // 카카오 키가 없으면 null
+    updatePlaces(places.map((x) => (x.id === p.id ? { ...x, link: safeUrl(r.url), address, ...(found ? { lat: found.lat, lng: found.lng } : {}) } : x)))
+    if (found) setPlaceFocus({ id: p.id })
+    else alert('링크를 넣었어요. 지도 핀이 가게와 다르면 \'위치 고치기\'로 맞춰 주세요.')
   }
   const removePlace = async (p) => {
     if (!confirm(`'${p.name}' 삭제할까요?`)) return
@@ -342,10 +347,12 @@ export default function App() {
           </div>
           <div className="progress">
             <div className="progress-head">
-              <p><b>{doneCount}</b> / {COURSES.length}코스</p>
+              <p className="count">
+                <b>{doneCount}</b> / {COURSES.length}코스
+                <span className="km">· {fmtKmShort(doneKm)} / {fmtKmShort(TOTAL_KM)}km</span>
+              </p>
               <p className="pct"><b>{donePct}</b>%<small>완주</small></p>
             </div>
-            <p className="km">거리로 보면 {fmtKmShort(doneKm)} / {fmtKmShort(TOTAL_KM)}km</p>
             <div className="gyul-row">
               {COURSES.map((c) => (
                 <button key={c.id} className={done[c.id] ? 'gyul-cell on' : 'gyul-cell'} onClick={() => setSheet({ type: 'course', id: c.id })} aria-label={`${c.id}코스`}>
