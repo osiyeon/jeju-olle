@@ -429,7 +429,7 @@ export default function App() {
 
       {/* ===== 기록 ===== */}
       {tab === 'history' && (
-        <div className="page">
+        <div className="page page-history">
           <h2>걷기 기록</h2>
           {walks.length === 0 && (
             <div className="empty">

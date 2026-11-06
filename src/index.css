@@ -141,8 +141,12 @@ h2, h3, h4, .btn, .tabs button, .tag, .splash, .course-chip b, .course-list li b
 .walk-list .right { text-align: right; }
 .walk-list .right b { font-family: var(--hand); font-size: 24px; }
 .backup { margin-top: 32px; }
+/* 기록이 적어도 백업·돌담은 화면 맨 아래에 (많으면 목록 뒤로 이어짐) */
+.page-history { display: flex; flex-direction: column; }
+.page-history > * { flex-shrink: 0; }
+.page-history .backup { margin-top: auto; padding-top: 32px; }
 .backup h4 { margin: 0; font-family: var(--hand); font-size: 22px; }
-.wall { display: flex; margin: 36px -18px -28px; overflow: hidden; opacity: .9; }
+.wall { display: flex; margin: 24px -18px -28px; overflow: hidden; opacity: .9; }
 .wall svg { flex: none; }
 
 .stars { display: inline-flex; vertical-align: middle; }
