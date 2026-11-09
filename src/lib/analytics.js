@@ -20,6 +20,19 @@ function countClean(opts) {
   }
 }
 
+// 출처 정보(referrer)가 비어 있을 때: 앱 안 브라우저 이름으로 어디서 열었는지 추정
+// (인스타그램·카톡 등은 링크를 앱 안 브라우저로 열고, 이때 referrer가 비는 경우가 많음)
+function inAppSource() {
+  const ua = navigator.userAgent
+  if (/Instagram/i.test(ua)) return 'instagram.com'
+  if (/KAKAOTALK/i.test(ua)) return 'kakaotalk'
+  if (/FBAN|FBAV|FB_IAB/i.test(ua)) return 'facebook.com'
+  if (/Barcelona|Threads/i.test(ua)) return 'threads.net'
+  if (/NAVER\(inapp/i.test(ua)) return 'naver app'
+  if (/ Line\//i.test(ua)) return 'line'
+  return ''
+}
+
 export function initAnalytics() {
   if (!analyticsOn()) return
   const params = new URLSearchParams(location.search)
@@ -30,7 +43,7 @@ export function initAnalytics() {
   s.dataset.goatcounter = `https://${CODE}.goatcounter.com/count`
   s.dataset.goatcounterSettings = JSON.stringify({ no_onload: true })
   s.onload = () => {
-    countClean({ path: '/', title: '올레 기록장', referrer: ref || document.referrer || '' })
+    countClean({ path: '/', title: '올레 기록장', referrer: ref || document.referrer || inAppSource() })
     // 유입 꼬리표는 집계 후 주소창에서 지움 (홈 화면에 추가할 때 남지 않게)
     if (ref) {
       const u = new URL(location.href)

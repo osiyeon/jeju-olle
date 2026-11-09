@@ -22,7 +22,7 @@
 - `src/lib/courseTracks.json` — 코스 경로(OSM relation을 단순화). 1·2·4·6·16·18·19·20코스만. 3·5·7은 OSM 데이터가 공식 거리와 크게 달라 뺐음
 - `src/lib/geo.js` — haversine, 포맷 함수, `walkMs`(쉬는 시간 뺀 걸은 시간), `segments`
 - `src/lib/kakao.js` — 카카오 지도 JS SDK 주소·장소 검색으로 맛집 좌표 찾기. 키는 `VITE_KAKAO_JS_KEY`: 로컬은 `.env.local`(git 제외), 배포는 저장소 Actions 변수 → `deploy.yml`에서 빌드에 주입. 키가 없으면 건너뛰고 사용자가 지도에서 위치를 고름. 카카오 개발자 콘솔에 도메인(https://jeju-olle.norara.app, http://localhost:5173) 등록 필요
-- `src/lib/analytics.js` — GoatCounter 방문 통계(쿠키 없음). `VITE_GOATCOUNTER`(Actions 변수) 있을 때 실제 도메인에서만. 주소는 항상 `/`로 보내 `?w=`가 새지 않게, `?ref=` 유입 꼬리표는 집계 후 지움. 기능은 이름만(`track`)
+- `src/lib/analytics.js` — GoatCounter 방문 통계(쿠키 없음). `VITE_GOATCOUNTER`(Actions 변수) 있을 때 실제 도메인에서만. 주소는 항상 `/`로 보내 `?w=`가 새지 않게, `?ref=` 유입 꼬리표는 집계 후 지움(필수 아님: referrer가 비면 앱 안 브라우저 이름으로 인스타·카톡 등 유입을 추정). GoatCounter가 주소창 쿼리를 q로 따로 보내므로 보내는 순간만 주소를 '/'로 바꿨다 되돌림(`countClean`). 기능은 이름만(`track`)
 - `src/lib/mapLink.js` — 네이버 지도/카카오맵 "공유 → 복사" 글에서 링크·이름·주소 추출. 맛집 `link`, `address` 필드
 - `src/lib/store.js` — IndexedDB, 사진 리사이즈, 백업/복원
 - `src/lib/shareCard.js` — 1080×1920 공유 카드 Canvas 렌더 + Web Share
