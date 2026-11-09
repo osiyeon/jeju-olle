@@ -6,6 +6,20 @@ const CODE = import.meta.env.VITE_GOATCOUNTER || ''
 const PROD_HOST = 'jeju-olle.norara.app'
 export const analyticsOn = () => !!CODE && location.hostname === PROD_HOST
 
+// GoatCounter는 주소창의 물음표 뒷부분(?w= 걷기 위치 등)을 q로 따로 보낸다.
+// 보내는 순간에만 주소를 '/'로 바꿨다가 되돌려서 아무 쿼리도 새지 않게 함 (count는 동기로 데이터를 만듦)
+function countClean(opts) {
+  const saved = location.href
+  try {
+    history.replaceState(history.state, '', location.pathname)
+    window.goatcounter?.count?.(opts)
+  } catch {
+    // 통계 실패는 앱 동작과 무관
+  } finally {
+    if (location.href !== saved) history.replaceState(history.state, '', saved)
+  }
+}
+
 export function initAnalytics() {
   if (!analyticsOn()) return
   const params = new URLSearchParams(location.search)
@@ -16,7 +30,7 @@ export function initAnalytics() {
   s.dataset.goatcounter = `https://${CODE}.goatcounter.com/count`
   s.dataset.goatcounterSettings = JSON.stringify({ no_onload: true })
   s.onload = () => {
-    window.goatcounter?.count?.({ path: '/', title: '올레 기록장', referrer: ref || document.referrer || '' })
+    countClean({ path: '/', title: '올레 기록장', referrer: ref || document.referrer || '' })
     // 유입 꼬리표는 집계 후 주소창에서 지움 (홈 화면에 추가할 때 남지 않게)
     if (ref) {
       const u = new URL(location.href)
@@ -31,9 +45,5 @@ export function initAnalytics() {
 // 기능 사용 횟수 (예: track('walk-start', '걷기 시작'))
 export function track(name, title) {
   if (!analyticsOn()) return
-  try {
-    window.goatcounter?.count?.({ path: name, title, event: true })
-  } catch {
-    // 통계 실패는 앱 동작과 무관
-  }
+  countClean({ path: name, title, event: true })
 }
