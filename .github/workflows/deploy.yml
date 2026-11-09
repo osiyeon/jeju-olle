@@ -31,6 +31,7 @@ jobs:
         env:
           # 저장소 Settings > Secrets and variables > Actions > Variables 에 등록
           VITE_KAKAO_JS_KEY: ${{ vars.VITE_KAKAO_JS_KEY }}
+          VITE_GOATCOUNTER: ${{ vars.VITE_GOATCOUNTER }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

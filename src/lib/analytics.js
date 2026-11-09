@@ -1,0 +1,39 @@
+// 방문 통계 (GoatCounter: 쿠키 없음, 개인 식별 없음)
+// - 실제 사이트에서만 집계, 사이트 코드는 VITE_GOATCOUNTER (없으면 아무것도 안 함)
+// - 주소는 항상 '/'로만 보냄: 주소창의 ?w=(걷기 시작 위치·시각)가 통계로 새지 않게
+// - 기능 사용은 이름만 셈 (위치·기록 내용은 보내지 않음)
+const CODE = import.meta.env.VITE_GOATCOUNTER || ''
+const PROD_HOST = 'jeju-olle.norara.app'
+export const analyticsOn = () => !!CODE && location.hostname === PROD_HOST
+
+export function initAnalytics() {
+  if (!analyticsOn()) return
+  const params = new URLSearchParams(location.search)
+  const ref = params.get('ref') || params.get('utm_source')
+  const s = document.createElement('script')
+  s.async = true
+  s.src = 'https://gc.zgo.at/count.js'
+  s.dataset.goatcounter = `https://${CODE}.goatcounter.com/count`
+  s.dataset.goatcounterSettings = JSON.stringify({ no_onload: true })
+  s.onload = () => {
+    window.goatcounter?.count?.({ path: '/', title: '올레 기록장', referrer: ref || document.referrer || '' })
+    // 유입 꼬리표는 집계 후 주소창에서 지움 (홈 화면에 추가할 때 남지 않게)
+    if (ref) {
+      const u = new URL(location.href)
+      u.searchParams.delete('ref')
+      u.searchParams.delete('utm_source')
+      history.replaceState(null, '', u)
+    }
+  }
+  document.head.appendChild(s)
+}
+
+// 기능 사용 횟수 (예: track('walk-start', '걷기 시작'))
+export function track(name, title) {
+  if (!analyticsOn()) return
+  try {
+    window.goatcounter?.count?.({ path: name, title, event: true })
+  } catch {
+    // 통계 실패는 앱 동작과 무관
+  }
+}

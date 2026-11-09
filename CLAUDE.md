@@ -22,14 +22,19 @@
 - `src/lib/courseTracks.json` — 코스 경로(OSM relation을 단순화). 1·2·4·6·16·18·19·20코스만. 3·5·7은 OSM 데이터가 공식 거리와 크게 달라 뺐음
 - `src/lib/geo.js` — haversine, 포맷 함수, `walkMs`(쉬는 시간 뺀 걸은 시간), `segments`
 - `src/lib/kakao.js` — 카카오 지도 JS SDK 주소·장소 검색으로 맛집 좌표 찾기. 키는 `VITE_KAKAO_JS_KEY`: 로컬은 `.env.local`(git 제외), 배포는 저장소 Actions 변수 → `deploy.yml`에서 빌드에 주입. 키가 없으면 건너뛰고 사용자가 지도에서 위치를 고름. 카카오 개발자 콘솔에 도메인(https://jeju-olle.norara.app, http://localhost:5173) 등록 필요
+- `src/lib/analytics.js` — GoatCounter 방문 통계(쿠키 없음). `VITE_GOATCOUNTER`(Actions 변수) 있을 때 실제 도메인에서만. 주소는 항상 `/`로 보내 `?w=`가 새지 않게, `?ref=` 유입 꼬리표는 집계 후 지움. 기능은 이름만(`track`)
 - `src/lib/mapLink.js` — 네이버 지도/카카오맵 "공유 → 복사" 글에서 링크·이름·주소 추출. 맛집 `link`, `address` 필드
 - `src/lib/store.js` — IndexedDB, 사진 리사이즈, 백업/복원
 - `src/lib/shareCard.js` — 1080×1920 공유 카드 Canvas 렌더 + Web Share
 - `src/lib/doodles.js` — 손그림 낙서(귤, 돌하르방, 돌담, 오름, 동백, 파도, 그릇) path 데이터. 화면 SVG(`components/Doodle.jsx`)와 공유 카드 Canvas가 같이 씀
 
 ## GPS 규칙
-오차 50m 초과 버림, 8m 미만 이동 무시, 초속 12m 초과(순간이동) 무시. 진행 중 기록은 점마다 `lib/walkState.js`의 `saveActive`로 IndexedDB(`active`) + localStorage(`olle-active`) + 주소창 `?w=id~코스~시작시각~쉰ms~쉼시작~위도~경도` 세 군데에 저장. iOS Safari가 화면 꺼진 사이 탭을 다시 불러오며 저장소를 비워도 URL로 이어서 계산(11/5 19코스에서 걷기가 통째로 사라졌던 문제).
-화면 꺼짐 등으로 위치가 45초 넘게 안 들어오다 100m 넘게 떨어진 곳에서 들어오면, 그 사이를 코스 경로를 따라 채움(`fillAlongCourse`, 점 플래그 2, 거리는 공식 km/OSM 길이 비율로 보정). 코스 밖이면 직선. 화면이 다시 보이면 watchPosition 재시작(`gpsKey`).
+오차 35m 초과 버림(실제로 걸어 보니 50m는 길에서 많이 벗어남), 8m 미만 이동 무시, 초속 12m 초과(순간이동) 무시. 진행 중 기록은 점마다 `lib/walkState.js`의 `saveActive`로 IndexedDB(`active`) + localStorage(`olle-active`) + 주소창 `?w=id~코스~시작시각~쉰ms~쉼시작~위도~경도` 세 군데에 저장. iOS Safari가 화면 꺼진 사이 탭을 다시 불러오며 저장소를 비워도 URL로 이어서 계산(11/5 19코스에서 걷기가 통째로 사라졌던 문제).
+코스 맞추기는 `lib/courseMatch.js`:
+- 코스 경로에서 30m 안의 점은 선 위로 붙임(`snapToCourse`). 경로 끝점으로 붙는 경우는 그대로(경로 밖으로 걸어 나가면 끝점에 점이 쌓이므로)
+- 화면 꺼짐 등으로 위치가 45초 넘게 안 들어오다 100m 넘게 떨어진 곳에서 들어오면 그 사이를 코스 경로로 채움(`fillGap`, 점 플래그 2, 거리는 공식 km/OSM 길이 비율로 보정). **선택한 코스가 아니어도** 두 점 근처 코스가 있으면 그 경로를 씀. 코스 밖이면 직선
+- 지금 위치가 다른 코스 위면(300m 안, 선택한 코스는 800m 밖) "N코스로 바꾸기" 제안. 걷는 중에도 바꿀 수 있음 (11/7 20코스를 19코스로 선택한 채 걸어서 빈 구간이 직선으로 나온 문제)
+- 저장된 걷기는 기록 상세에서 코스를 바꾸거나 "코스 경로에 맞춰 다시 계산" → `rebuildWalk`, 완주 도장도 옮김 화면이 다시 보이면 watchPosition 재시작(`gpsKey`).
 일시정지: `active.pausedAt`/`pausedMs`/`resumedAt`. 쉬는 동안 점을 안 받고, 다시 걸을 때 첫 점은 `[lat,lng,t,1]`(새 구간)로 넣어 쉬는 사이 이동 거리를 빼고 선도 안 잇는다. 걸은 시간은 `walkMs()`(쉬는 시간 제외), 경로 구간은 `segments()` (`lib/geo.js`). 쉬는 동안엔 Wake Lock 해제.
 
 ## 개발 · 테스트

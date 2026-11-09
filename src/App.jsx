@@ -4,8 +4,10 @@ import LocationPicker from './components/LocationPicker'
 import { Doodle, TabIcon } from './components/Doodle'
 import { CourseSheet, PhotoThumb, PlaceForm, ShareSheet, Sheet, Stars } from './components/Modals'
 import { COURSES, courseById, courseTrack } from './lib/courses'
-import { fillAlongCourse, fmtDate, fmtDuration, fmtDurationKo, fmtKm, fmtPace, haversine, localISO, walkMs } from './lib/geo'
+import { fmtDate, fmtDuration, fmtDurationKo, fmtKm, fmtPace, haversine, localISO, walkMs } from './lib/geo'
 import { askPersist, declineUrlWalk, loadActive, saveActive } from './lib/walkState'
+import { analyticsOn, track } from './lib/analytics'
+import { GAP_M, GAP_MS, fillGap, nearestCourse, nearestOnTrack, rebuildWalk, snapToCourse } from './lib/courseMatch'
 import { delPhoto, exportAll, importAll, load, lsGet, lsSet, save, savePhoto, uid } from './lib/store'
 import { mapSource, parseShared, readClipboard, safeUrl } from './lib/mapLink'
 import { locatePlace } from './lib/kakao'
@@ -13,10 +15,8 @@ import { locatePlace } from './lib/kakao'
 const TOTAL_KM = COURSES.reduce((sum, c) => sum + (c.km || 0), 0)
 const fmtKmShort = (km) => (Math.round(km * 10) / 10).toString()
 const SIM = new URLSearchParams(location.search).has('sim') // ?sim → 가짜 GPS로 테스트
-const MAX_ACC = 50 // m, 이보다 부정확한 위치는 경로에 안 넣음
+const MAX_ACC = 35 // m, 이보다 부정확한 위치는 경로에 안 넣음 (실제 걸어 보니 50m는 길에서 많이 벗어남)
 const MAX_SPEED = 12 // m/s, 튀는 점 제거
-const GAP_MS = 45000 // 이보다 오래 위치가 안 들어오다가(화면 꺼짐 등) 다시 들어오면
-const GAP_M = 100 //   이만큼 이상 떨어져 있을 때 그 사이를 코스 경로로 채운다
 
 export default function App() {
   const [tab, setTab] = useState('walk')
@@ -95,21 +95,19 @@ export default function App() {
     if (!a || a.pausedAt || p.accuracy > MAX_ACC) return
     const last = a.points[a.points.length - 1]
     // 일시정지 후 첫 점: 쉬는 동안 움직인 거리는 빼고 새 구간으로 시작
+    // 코스 경로에서 30m 안이면 선 위로 붙임 (GPS 오차로 길에서 벗어난 선 방지)
+    const pt = snapToCourse(a.courseId, [p.lat, p.lng, p.t])
     if (last && a.resumedAt && last[2] < a.resumedAt) {
-      const next = { ...a, points: [...a.points, [p.lat, p.lng, p.t, 1]] }
+      const next = { ...a, points: [...a.points, [pt[0], pt[1], pt[2], 1]] }
       activeRef.current = next
       setActiveState(next)
       saveActive(next)
       return
     }
-    const pt = [p.lat, p.lng, p.t]
     // 화면이 꺼져 있다가(위치가 한동안 안 들어오다가) 돌아온 경우: 그 사이를 코스 경로로 채움
+    // 선택한 코스가 아니어도 두 위치에서 가까운 코스가 있으면 그 경로를 따름
     if (last && p.t - last[2] > GAP_MS && haversine(last, pt) > GAP_M) {
-      const c = courseById(a.courseId)
-      const segs = courseTrack(a.courseId)
-      const trackLen = segs ? Math.max(...segs.map((sg) => sg.reduce((m, q, i) => (i ? m + haversine(sg[i - 1], q) : 0), 0))) : 0
-      const scale = c?.km && trackLen ? Math.min(1, (c.km * 1000) / trackLen) : 1
-      const fill = fillAlongCourse(segs, last, pt, { scale })
+      const fill = fillGap(a.courseId, last, pt)
       const dt = p.t - last[2]
       const dist = fill ? fill.dist : haversine(last, pt)
       const mids = fill ? fill.pts.map((q, i) => [q[0], q[1], Math.round(last[2] + (dt * (i + 1)) / (fill.pts.length + 1)), 2]) : []
@@ -117,7 +115,7 @@ export default function App() {
       activeRef.current = next
       setActiveState(next)
       saveActive(next)
-      setNote(`화면이 꺼져 있던 ${fmtDurationKo(dt)} 동안 ${fmtKm(dist)}km를 ${fill ? '코스 경로를 따라' : '직선거리로'} 계산했어요.`)
+      setNote(`화면이 꺼져 있던 ${fmtDurationKo(dt)} 동안 ${fmtKm(dist)}km를 ${fill ? `${fill.courseId === a.courseId ? '코스' : `${fill.courseId}코스`} 경로를 따라` : '직선거리로'} 계산했어요.`)
       return
     }
     let add = 0
@@ -211,6 +209,7 @@ export default function App() {
     if (pos && pos.accuracy <= MAX_ACC) a.points.push([pos.lat, pos.lng, Date.now()])
     setActive(a)
     askPersist()
+    track('walk-start', '걷기 시작')
     setFollow(true)
   }
 
@@ -226,6 +225,7 @@ export default function App() {
     const t = Date.now()
     const pausedMs = (a.pausedMs || 0) + (a.pausedAt ? t - a.pausedAt : 0)
     const w = { ...a, endedAt: t, pausedAt: null, pausedMs, completed }
+    if (completed) track('walk-complete', '완주')
     updateWalks([w, ...walks])
     if (completed) updateDone({ ...done, [a.courseId]: { ...done[a.courseId], date: localISO(a.startedAt), walkId: w.id } })
     setActive(null)
@@ -235,6 +235,31 @@ export default function App() {
 
   const remaining = course?.end && pos ? haversine([pos.lat, pos.lng], [course.end.lat, course.end.lng]) : null
   const elapsed = active ? walkMs(active, now) : 0
+  // 지금 위치가 선택한 코스가 아닌 다른 코스 위면 바꾸자고 제안
+  const nearby = useMemo(() => {
+    if (!pos) return null
+    const here = [pos.lat, pos.lng]
+    const near = nearestCourse(here, 300)
+    if (!near || near.id === courseId) return null
+    const own = nearestOnTrack(courseTrack(courseId), here)
+    return own && own.d < 800 ? null : near
+  }, [pos, courseId])
+  const switchCourse = (id) => {
+    setCourseId(id)
+    if (activeRef.current) setActive({ ...activeRef.current, courseId: id })
+  }
+  // 저장된 걷기의 코스를 바꾸고 다시 계산 (완주 기록도 옮김)
+  const rebuildSavedWalk = (w, id) => {
+    const nw = rebuildWalk(w, id)
+    updateWalks(walks.map((x) => (x.id === w.id ? nw : x)))
+    if (id !== w.courseId && done[w.courseId]?.walkId === w.id) {
+      const d = { ...done, [id]: { ...done[w.courseId] } }
+      delete d[w.courseId]
+      updateDone(d)
+    }
+    setSheet({ type: 'walk', walk: nw })
+    return nw
+  }
   const coursePlaces = useMemo(() => places.filter((p) => p.lat != null), [places])
   const doneCount = Object.keys(done).length
   const doneKm = COURSES.reduce((sum, c) => sum + (done[c.id] ? c.km || 0 : 0), 0)
@@ -245,6 +270,7 @@ export default function App() {
     const p = { id: uid(), createdAt: Date.now(), photo: !!photo, ...data }
     if (photo) await savePhoto(p.id, photo)
     updatePlaces([p, ...places])
+    track('place-save', '맛집 저장')
     setSheet(null)
   }
   // 이미 저장한 맛집에 지도 링크 나중에 붙이기
@@ -320,6 +346,12 @@ export default function App() {
                   <div><span>시간</span><b>{fmtDuration(elapsed)}</b></div>
                   <div><span>페이스</span><b>{fmtPace(elapsed, active.distance)}</b></div>
                 </div>
+                {nearby && (
+                  <p className="note course-hint">
+                    지금 {nearby.id}코스 근처예요.
+                    <button onClick={() => switchCourse(nearby.id)}>{nearby.id}코스로 바꾸기</button>
+                  </p>
+                )}
                 {note && <p className="note">{note}</p>}
                 {!note && !paused && wakeOk === false && (
                   <p className="note">화면이 저절로 꺼질 수 있어요. 꺼져도 다시 켜면 그동안 거리를 코스를 따라 계산해요.</p>
@@ -341,6 +373,12 @@ export default function App() {
               </>
             ) : (
               <>
+                {nearby && (
+                  <p className="note course-hint">
+                    지금 {nearby.id}코스 근처예요.
+                    <button onClick={() => switchCourse(nearby.id)}>{nearby.id}코스로 바꾸기</button>
+                  </p>
+                )}
                 <p className="status">
                   {pos ? `현재 위치 오차 ±${Math.round(pos.accuracy)}m` : '위치 찾는 중…'}
                   {done[course.id] && ` · ${done[course.id].date} 완주`}
@@ -571,6 +609,27 @@ export default function App() {
             <div><span>시간</span><b>{fmtDuration(walkMs(sheet.walk))}</b></div>
             <div><span>페이스</span><b>{fmtPace(walkMs(sheet.walk), sheet.walk.distance)}</b></div>
           </div>
+          <label className="walk-course">코스
+            <select
+              value={sheet.walk.courseId}
+              onChange={(e) => {
+                const id = e.target.value
+                if (confirm(`${id}코스로 바꾸고, 화면이 꺼졌던 구간도 ${id}코스 경로를 따라 다시 계산할까요?`)) rebuildSavedWalk(sheet.walk, id)
+              }}
+            >
+              {COURSES.map((c) => <option key={c.id} value={c.id}>{c.id}코스 · {c.name}</option>)}
+            </select>
+          </label>
+          <button
+            className="btn block"
+            onClick={() => {
+              const before = sheet.walk.distance
+              const nw = rebuildSavedWalk(sheet.walk, sheet.walk.courseId)
+              alert(`코스 경로에 맞춰 다시 계산했어요.\n${fmtKm(before)}km → ${fmtKm(nw.distance)}km`)
+            }}
+          >
+            코스 경로에 맞춰 다시 계산
+          </button>
           <button className="btn primary block" onClick={() => setSheet({ type: 'share', walk: sheet.walk })}>공유 카드 만들기</button>
           <button
             className="btn block danger-text"
@@ -594,10 +653,12 @@ function Backup() {
     <div className="backup">
       <h4>백업</h4>
       <p className="hint">기록은 이 휴대폰 Safari에만 남아요. 걷고 난 날엔 백업 파일을 받아 두세요.</p>
+      {analyticsOn() && <p className="hint">방문 수와 기능 사용 횟수만 익명으로 세요. 위치나 기록 내용은 보내지 않아요.</p>}
       <div className="row">
         <button
           className="btn"
           onClick={async () => {
+            track('backup', '백업 받기')
             const data = await exportAll()
             const blob = new Blob([JSON.stringify(data)], { type: 'application/json' })
             const file = new File([blob], `olle-backup-${localISO()}.json`, { type: 'application/json' })

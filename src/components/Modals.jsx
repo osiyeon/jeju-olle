@@ -5,6 +5,7 @@ import { makeShareCard, shareOrDownload } from '../lib/shareCard'
 import { todayISO } from '../lib/geo'
 import { parseShared, readClipboard, safeUrl, searchLinks } from '../lib/mapLink'
 import LocationPicker from './LocationPicker'
+import { track } from '../lib/analytics'
 import { kakaoReady, locatePlace } from '../lib/kakao'
 
 export function Sheet({ title, onClose, children }) {
@@ -215,6 +216,7 @@ export function ShareSheet({ walk, course, placeCount, onClose }) {
         className="btn primary block"
         disabled={!blob}
         onClick={async () => {
+          track('share-card', '공유 카드')
           const r = await shareOrDownload(blob, `olle-${course.id}.jpg`, `제주올레 ${course.id}코스 ${course.name}`)
           if (r === 'downloaded') setMsg('이미지를 저장했어요.')
         }}
